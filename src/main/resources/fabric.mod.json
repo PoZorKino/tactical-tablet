@@ -11,6 +11,9 @@
     "main": ["moe.dexx.tacticaltablet.TacticalTablet"],
     "client": ["moe.dexx.tacticaltablet.client.TacticalTabletClient"]
   },
+  "mixins": [
+    {"config": "tactical_tablet.client.mixins.json", "environment": "client"}
+  ],
   "depends": {
     "fabricloader": ">=0.15.0",
     "minecraft": "1.20.1",

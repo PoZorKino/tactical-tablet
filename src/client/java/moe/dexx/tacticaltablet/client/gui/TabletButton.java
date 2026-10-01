@@ -1,6 +1,10 @@
 package moe.dexx.tacticaltablet.client.gui;
 
+import moe.dexx.tacticaltablet.ModSounds;
+import moe.dexx.tacticaltablet.client.TacticalTabletClient;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.resources.sounds.SimpleSoundInstance;
+import net.minecraft.client.sounds.SoundManager;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.AbstractWidget;
@@ -42,6 +46,13 @@ public class TabletButton extends AbstractWidget {
     public void onClick(double mouseX, double mouseY) {
         pressed = true;
         onPress.run();
+    }
+
+    @Override
+    public void playDownSound(SoundManager handler) {
+        if (TacticalTabletClient.config().soundEffects) {
+            handler.play(SimpleSoundInstance.forUI(ModSounds.BUTTON_CLICK, 1.0F));
+        }
     }
 
     @Override

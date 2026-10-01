@@ -97,5 +97,22 @@
   "tactical_tablet.hud.phase.charge": "CANNON CHARGING  %s",
   "tactical_tablet.hud.phase.travel": "SALVO FIRED",
   "tactical_tablet.hud.phase.impact": "IMPACT",
-  "tactical_tablet.hud.phase.destroying": "DESTRUCTION %s%%  (%s/%s chunks)"
+  "tactical_tablet.hud.phase.destroying": "DESTRUCTION %s%%  (%s/%s chunks)",
+  "tactical_tablet.cinematic.ascent": "LEAVING FOR ORBIT",
+  "tactical_tablet.cinematic.jupiter": "JUPITER",
+  "tactical_tablet.cinematic.saturn": "SATURN",
+  "tactical_tablet.cinematic.cannon": "CANNON BEYOND SATURN  ·  CHARGE %s%%",
+  "tactical_tablet.cinematic.fire": "SALVO FIRED",
+  "tactical_tablet.cinematic.descent": "BEAM INBOUND",
+  "tactical_tablet.cinematic.impact": "TARGET HIT",
+  "tactical_tablet.cinematic.hint.skip": "[Space] skip",
+  "tactical_tablet.cinematic.hint.cancel": "[C] cancel launch",
+  "tactical_tablet.subtitle.tablet_open": "Tablet powers on",
+  "tactical_tablet.subtitle.countdown_beep": "Countdown beeps",
+  "tactical_tablet.subtitle.cannon_charge": "Orbital cannon charges",
+  "tactical_tablet.subtitle.cannon_fire": "Orbital cannon fires",
+  "tactical_tablet.subtitle.laser_flyby": "Laser salvo approaches",
+  "tactical_tablet.subtitle.explosion": "Orbital strike hits",
+  "tactical_tablet.subtitle.destruction": "Destruction rumbles",
+  "tactical_tablet.subtitle.strike_complete": "Operation complete"
 }

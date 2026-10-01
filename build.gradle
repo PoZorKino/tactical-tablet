@@ -38,6 +38,13 @@ loom {
             vmArg "-Dfabric-api.gametest.report-file=reports/junit.xml"
             runDir "build/gametest"
         }
+        smoke {
+            client()
+            name "Smoke"
+            source sourceSets.client
+            vmArg "-Dtactical_tablet.smoke=true"
+            runDir "build/smoke"
+        }
         benchmark {
             server()
             name "Benchmark"

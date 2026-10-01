@@ -45,6 +45,7 @@ public final class TacticalTablet implements ModInitializer {
     @Override
     public void onInitialize() {
         ModItems.register();
+        ModSounds.register();
         ServerNetworking.register();
         TabletCommands.register();
         BenchmarkHook.register();

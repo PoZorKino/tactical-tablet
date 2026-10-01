@@ -44,6 +44,10 @@ public final class ZoneRing {
             draw(context, own.target().getX(), own.target().getY(), own.target().getZ(), own.radius(), 1.0F, 0.35F, 0.2F, pulse);
             return;
         }
+        if (own != null) {
+            // The strike is landing: the beams and the crater mark the zone now.
+            return;
+        }
         StrikeParams params = HeldTablet.params(minecraft.player);
         if (params != null && params.hasTarget()) {
             draw(context, params.targetX(), params.targetY(), params.targetZ(), params.radius(), 0.2F, 0.82F, 1.0F, 0.8F);

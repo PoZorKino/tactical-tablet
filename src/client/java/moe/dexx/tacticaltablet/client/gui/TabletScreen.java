@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.function.Consumer;
+import moe.dexx.tacticaltablet.ModSounds;
 import moe.dexx.tacticaltablet.client.TacticalTabletClient;
 import moe.dexx.tacticaltablet.client.config.ClientConfig;
 import moe.dexx.tacticaltablet.client.net.ClientNetworking;
@@ -22,6 +23,7 @@ import net.minecraft.client.gui.components.Renderable;
 import net.minecraft.client.gui.components.events.GuiEventListener;
 import net.minecraft.client.gui.narration.NarratableEntry;
 import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.resources.sounds.SimpleSoundInstance;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.util.FormattedCharSequence;
@@ -72,6 +74,9 @@ public class TabletScreen extends Screen {
         if (params == null) {
             StrikeParams held = minecraft.player == null ? null : HeldTablet.params(minecraft.player);
             params = held == null ? StrikeParams.DEFAULT : held;
+            if (TacticalTabletClient.config().soundEffects) {
+                minecraft.getSoundManager().play(SimpleSoundInstance.forUI(ModSounds.TABLET_OPEN, 1.0F));
+            }
         }
         left = (width - PANEL_WIDTH) / 2;
         top = (height - PANEL_HEIGHT) / 2;

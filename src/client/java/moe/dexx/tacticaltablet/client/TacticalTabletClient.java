@@ -1,6 +1,9 @@
 package moe.dexx.tacticaltablet.client;
 
+import moe.dexx.tacticaltablet.client.cinematic.Cinematic;
 import moe.dexx.tacticaltablet.client.config.ClientConfig;
+import moe.dexx.tacticaltablet.client.dev.SmokeHook;
+import moe.dexx.tacticaltablet.client.effects.StrikeEffects;
 import moe.dexx.tacticaltablet.client.gui.TabletScreen;
 import moe.dexx.tacticaltablet.client.hud.TabletHud;
 import moe.dexx.tacticaltablet.client.net.ClientNetworking;
@@ -25,6 +28,7 @@ public final class TacticalTabletClient implements ClientModInitializer {
     public void onInitializeClient() {
         config = ClientConfig.load(FabricLoader.getInstance().getConfigDir().resolve("tactical_tablet-client.json"));
         ClientNetworking.register();
+        SmokeHook.register();
 
         // Using the tablet either fixes the aimed block as the target or opens the interface.
         TacticalTabletItem.clientUseHandler = hand -> {
@@ -37,7 +41,12 @@ public final class TacticalTabletClient implements ClientModInitializer {
         };
 
         ClientTickEvents.END_CLIENT_TICK.register(AimMode::tick);
+        ClientTickEvents.END_CLIENT_TICK.register(StrikeEffects::tick);
+        ClientTickEvents.END_CLIENT_TICK.register(Cinematic::tick);
+        // The flash goes under the status lines so they stay readable.
+        HudRenderCallback.EVENT.register(StrikeEffects::renderFlash);
         HudRenderCallback.EVENT.register(TabletHud::render);
         WorldRenderEvents.AFTER_TRANSLUCENT.register(ZoneRing::render);
+        WorldRenderEvents.AFTER_TRANSLUCENT.register(StrikeEffects::render);
     }
 }

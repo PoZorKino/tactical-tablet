@@ -7,7 +7,8 @@
   "entrypoints": {
     "fabric-gametest": [
       "moe.dexx.tacticaltablet.gametest.ItemGameTests",
-      "moe.dexx.tacticaltablet.gametest.DestructionGameTests"
+      "moe.dexx.tacticaltablet.gametest.DestructionGameTests",
+      "moe.dexx.tacticaltablet.gametest.StrikeGameTests"
     ]
   },
   "depends": {

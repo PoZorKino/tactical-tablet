@@ -23,6 +23,7 @@ import moe.dexx.tacticaltablet.client.state.ClientStrikes;
 import moe.dexx.tacticaltablet.net.StrikeState;
 import moe.dexx.tacticaltablet.strike.StrikePhase;
 import moe.dexx.tacticaltablet.strike.StrikeTimeline;
+import moe.dexx.tacticaltablet.strike.StrikeType;
 import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderContext;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
@@ -43,12 +44,14 @@ import org.joml.Matrix4f;
 public final class StrikeEffects {
     /** Ticks a hit keeps animating. */
     private static final int HIT_LIFE = 50;
+    /** How long a kinetic rod stays standing in the ground. */
+    private static final int ROD_LIFE = 200;
     private static final int BEAM_TICKS = 16;
     private static final int FIREBALL_TICKS = 26;
     private static final int SHOCKWAVE_TICKS = 45;
     private static final float BEAM_HEIGHT = 800.0F;
 
-    private record Hit(long tick, double x, double y, double z, int radius, float scale) {
+    private record Hit(long tick, double x, double y, double z, int radius, float scale, StrikeType type, int life) {
     }
 
     private static final class Tracker {
@@ -80,7 +83,7 @@ public final class StrikeEffects {
             return;
         }
         long now = level.getGameTime();
-        HITS.removeIf(hit -> now - hit.tick() > HIT_LIFE || now < hit.tick() - 40);
+        HITS.removeIf(hit -> now - hit.tick() > hit.life() || now < hit.tick() - 40);
 
         Set<UUID> alive = new HashSet<>();
         for (StrikeState state : ClientStrikes.all()) {
@@ -189,14 +192,14 @@ public final class StrikeEffects {
                 }
             }
         }
-        HITS.add(new Hit(tick, x, y, z, state.radius(), scale));
+        HITS.add(new Hit(tick, x, y, z, state.radius(), scale, state.type(), state.type() == StrikeType.KINETIC ? ROD_LIFE : HIT_LIFE));
         play(minecraft, ModSounds.EXPLOSION, index == 0 ? 0.9F : 0.9F + RANDOM.nextFloat() * 0.3F, audibility(minecraft, tracker));
 
         ClientConfig config = TacticalTabletClient.config();
         if (!config.visualEffects) {
             return;
         }
-        int budget = Math.max(24, config.particleBudget() / state.salvos());
+        int budget = Math.max(24, config.particleBudget() / state.salvos()) * (state.type() == StrikeType.METEOR ? 2 : 1);
         double spread = Math.max(3.0, Math.min(state.radius(), 48) * scale);
         level.addParticle(ParticleTypes.FLASH, true, x, y + 2.0, z, 0.0, 0.0, 0.0);
         for (int i = 0; i < budget; i++) {
@@ -339,11 +342,24 @@ public final class StrikeEffects {
         Matrix4f matrix = context.matrixStack().last().pose();
 
         RenderSystem.enableBlend();
-        RenderSystem.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE);
+        RenderSystem.defaultBlendFunc();
         RenderSystem.disableCull();
-        RenderSystem.depthMask(false);
+        RenderSystem.depthMask(true);
         RenderSystem.setShader(GameRenderer::getPositionColorShader);
         BufferBuilder buffer = Tesselator.getInstance().getBuilder();
+        buffer.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR);
+        for (Hit hit : HITS) {
+            double age = now - hit.tick();
+            if (hit.type() == StrikeType.KINETIC && age >= 0.0 && age < hit.life()) {
+                spireBody(buffer, matrix, (float) (hit.x() - camera.x), (float) (hit.y() - camera.y), (float) (hit.z() - camera.z),
+                        hit, (float) age);
+            }
+        }
+        BufferUploader.drawWithShader(buffer.end());
+
+        RenderSystem.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE);
+        RenderSystem.depthMask(false);
+        buffer = Tesselator.getInstance().getBuilder();
         buffer.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR);
 
         for (Tracker tracker : TRACKERS.values()) {
@@ -361,27 +377,33 @@ public final class StrikeEffects {
         }
         for (Hit hit : HITS) {
             double age = now - hit.tick();
-            if (age < 0.0 || age > HIT_LIFE) {
+            if (age < 0.0 || age > hit.life()) {
                 continue;
             }
+            boolean kinetic = hit.type() == StrikeType.KINETIC;
+            boolean meteor = hit.type() == StrikeType.METEOR;
             float x = (float) (hit.x() - camera.x);
             float y = (float) (hit.y() - camera.y);
             float z = (float) (hit.z() - camera.z);
-            if (age < BEAM_TICKS) {
+            if (kinetic) {
+                spireGlow(buffer, matrix, x, y, z, hit, (float) age);
+            }
+            if (age < BEAM_TICKS && !kinetic && !meteor) {
                 float life = (float) age / BEAM_TICKS;
                 float width = Math.max(1.2F, hit.radius() * 0.05F) * hit.scale() * (age < 3.0 ? (float) age / 3.0F : 1.0F - 0.7F * life);
                 beam(buffer, matrix, x, y, z, width, 1.0F - life * life);
             }
             if (age < FIREBALL_TICKS) {
                 float life = (float) age / FIREBALL_TICKS;
-                float radius = hit.radius() * 0.85F * hit.scale() * (0.15F + 0.85F * easeOut(life));
-                fireball(buffer, matrix, x, y, z, Math.max(3.0F, radius), 0.55F * (1.0F - life));
+                float size = meteor ? 1.3F : 0.85F;
+                float radius = hit.radius() * size * hit.scale() * (0.15F + 0.85F * easeOut(life));
+                fireball(buffer, matrix, x, y, z, Math.max(3.0F, radius), 0.55F * (1.0F - life), meteor);
             }
             if (age < SHOCKWAVE_TICKS) {
                 float life = (float) age / SHOCKWAVE_TICKS;
                 float radius = (hit.radius() * 1.25F * hit.scale() + 6.0F) * easeOut(life);
-                float height = Math.max(4.0F, hit.radius() * 0.1F) * hit.scale() * (1.0F - 0.5F * life);
-                shockwave(buffer, matrix, x, y, z, radius, height, 0.6F * (1.0F - life));
+                float height = Math.max(4.0F, hit.radius() * 0.1F) * hit.scale() * (1.0F - 0.5F * life) * (meteor ? 1.7F : 1.0F);
+                shockwave(buffer, matrix, x, y, z, radius, height, 0.6F * (1.0F - life), kinetic ? 6 : 0, kinetic);
             }
         }
 
@@ -423,7 +445,7 @@ public final class StrikeEffects {
     }
 
     /** A glowing dome growing out of the point of impact. */
-    private static void fireball(BufferBuilder buffer, Matrix4f matrix, float x, float y, float z, float radius, float alpha) {
+    private static void fireball(BufferBuilder buffer, Matrix4f matrix, float x, float y, float z, float radius, float alpha, boolean red) {
         int rings = 8;
         int sectors = 28;
         for (int ring = 0; ring < rings; ring++) {
@@ -434,8 +456,9 @@ public final class StrikeEffects {
             float r0 = Mth.cos(p0) * radius;
             float r1 = Mth.cos(p1) * radius;
             // Orange at the ground, white-hot at the crown.
-            float g0 = 0.6F + 0.4F * ring / rings;
-            float g1 = 0.6F + 0.4F * (ring + 1) / rings;
+            float low = red ? 0.3F : 0.6F;
+            float g0 = low + (1.0F - low) * ring / rings;
+            float g1 = low + (1.0F - low) * (ring + 1) / rings;
             for (int sector = 0; sector < sectors; sector++) {
                 float a0 = Mth.TWO_PI * sector / sectors;
                 float a1 = Mth.TWO_PI * (sector + 1) / sectors;
@@ -448,8 +471,11 @@ public final class StrikeEffects {
     }
 
     /** A wall of dust and light racing outwards along the ground. */
-    private static void shockwave(BufferBuilder buffer, Matrix4f matrix, float x, float y, float z, float radius, float height, float alpha) {
-        int segments = Mth.clamp((int) radius, 24, 160);
+    private static void shockwave(BufferBuilder buffer, Matrix4f matrix, float x, float y, float z, float radius, float height, float alpha,
+                                  int fixedSegments, boolean orange) {
+        int segments = fixedSegments > 0 ? fixedSegments : Mth.clamp((int) radius, 24, 160);
+        float green = orange ? 0.5F : 0.9F;
+        float blue = orange ? 0.15F : 0.75F;
         for (int i = 0; i < segments; i++) {
             float a0 = Mth.TWO_PI * i / segments;
             float a1 = Mth.TWO_PI * (i + 1) / segments;
@@ -457,10 +483,72 @@ public final class StrikeEffects {
             float z0 = z + Mth.sin(a0) * radius;
             float x1 = x + Mth.cos(a1) * radius;
             float z1 = z + Mth.sin(a1) * radius;
-            buffer.vertex(matrix, x0, y - 2.0F, z0).color(1.0F, 0.9F, 0.75F, alpha).endVertex();
-            buffer.vertex(matrix, x1, y - 2.0F, z1).color(1.0F, 0.9F, 0.75F, alpha).endVertex();
-            buffer.vertex(matrix, x1, y + height, z1).color(1.0F, 0.8F, 0.55F, 0.0F).endVertex();
-            buffer.vertex(matrix, x0, y + height, z0).color(1.0F, 0.8F, 0.55F, 0.0F).endVertex();
+            buffer.vertex(matrix, x0, y - 2.0F, z0).color(1.0F, green, blue, alpha).endVertex();
+            buffer.vertex(matrix, x1, y - 2.0F, z1).color(1.0F, green, blue, alpha).endVertex();
+            buffer.vertex(matrix, x1, y + height, z1).color(1.0F, green * 0.9F, blue * 0.7F, 0.0F).endVertex();
+            buffer.vertex(matrix, x0, y + height, z0).color(1.0F, green * 0.9F, blue * 0.7F, 0.0F).endVertex();
+        }
+    }
+
+    /** Height of the rod standing in the ground; it drops in from above during the first ticks. */
+    private static float spireHeight(Hit hit, float age) {
+        return (150.0F + hit.radius() * 0.6F) * hit.scale() * Mth.clamp(age / 2.5F, 0.0F, 1.0F);
+    }
+
+    private static float spireWidth(Hit hit) {
+        return Math.max(1.6F, hit.radius() * 0.022F) * hit.scale();
+    }
+
+    /** The dark body of the rod: a six-sided needle that narrows towards its tip. Camera-relative coordinates. */
+    private static void spireBody(BufferBuilder buffer, Matrix4f matrix, float x, float y, float z, Hit hit, float age) {
+        float height = spireHeight(hit, age);
+        float width = spireWidth(hit);
+        float alpha = Mth.clamp((hit.life() - age) / 30.0F, 0.0F, 1.0F);
+        int sides = 6;
+        float topWidth = width * 0.35F;
+        for (int i = 0; i < sides; i++) {
+            float a0 = Mth.TWO_PI * i / sides;
+            float a1 = Mth.TWO_PI * (i + 1) / sides;
+            float shade = 0.05F + 0.04F * (i % 3);
+            buffer.vertex(matrix, x + Mth.cos(a0) * width, y - 3.0F, z + Mth.sin(a0) * width).color(shade, shade, shade * 1.2F, alpha).endVertex();
+            buffer.vertex(matrix, x + Mth.cos(a1) * width, y - 3.0F, z + Mth.sin(a1) * width).color(shade, shade, shade * 1.2F, alpha).endVertex();
+            buffer.vertex(matrix, x + Mth.cos(a1) * topWidth, y + height, z + Mth.sin(a1) * topWidth).color(shade, shade, shade * 1.2F, alpha).endVertex();
+            buffer.vertex(matrix, x + Mth.cos(a0) * topWidth, y + height, z + Mth.sin(a0) * topWidth).color(shade, shade, shade * 1.2F, alpha).endVertex();
+        }
+    }
+
+    /** Glowing orange bands up the rod and a hot ring at its foot, drawn additively. */
+    private static void spireGlow(BufferBuilder buffer, Matrix4f matrix, float x, float y, float z, Hit hit, float age) {
+        float height = spireHeight(hit, age);
+        float width = spireWidth(hit);
+        float alpha = Mth.clamp((hit.life() - age) / 30.0F, 0.0F, 1.0F);
+        float cool = Mth.clamp(1.0F - age / 120.0F, 0.0F, 1.0F);
+        int bands = Math.max(4, (int) (height / 14.0F));
+        for (int band = 0; band < bands; band++) {
+            float t0 = (band + 0.15F) / bands;
+            float t1 = (band + 0.3F) / bands;
+            float w0 = Mth.lerp(t0, width, width * 0.35F) * 1.04F;
+            float w1 = Mth.lerp(t1, width, width * 0.35F) * 1.04F;
+            float pulse = 0.55F + 0.45F * Mth.sin(age * 0.35F - band * 0.6F);
+            float strength = alpha * (0.35F + 0.65F * cool) * pulse;
+            for (int i = 0; i < 6; i++) {
+                float a0 = Mth.TWO_PI * i / 6;
+                float a1 = Mth.TWO_PI * (i + 1) / 6;
+                buffer.vertex(matrix, x + Mth.cos(a0) * w0, y + height * t0, z + Mth.sin(a0) * w0).color(1.0F, 0.45F, 0.12F, strength).endVertex();
+                buffer.vertex(matrix, x + Mth.cos(a1) * w0, y + height * t0, z + Mth.sin(a1) * w0).color(1.0F, 0.45F, 0.12F, strength).endVertex();
+                buffer.vertex(matrix, x + Mth.cos(a1) * w1, y + height * t1, z + Mth.sin(a1) * w1).color(1.0F, 0.45F, 0.12F, strength).endVertex();
+                buffer.vertex(matrix, x + Mth.cos(a0) * w1, y + height * t1, z + Mth.sin(a0) * w1).color(1.0F, 0.45F, 0.12F, strength).endVertex();
+            }
+        }
+        float foot = width * (2.4F + 3.0F * cool);
+        float strength = alpha * (0.3F + 0.7F * cool);
+        for (int i = 0; i < 6; i++) {
+            float a0 = Mth.TWO_PI * i / 6;
+            float a1 = Mth.TWO_PI * (i + 1) / 6;
+            buffer.vertex(matrix, x + Mth.cos(a0) * width, y + 0.2F, z + Mth.sin(a0) * width).color(1.0F, 0.9F, 0.7F, strength).endVertex();
+            buffer.vertex(matrix, x + Mth.cos(a1) * width, y + 0.2F, z + Mth.sin(a1) * width).color(1.0F, 0.9F, 0.7F, strength).endVertex();
+            buffer.vertex(matrix, x + Mth.cos(a1) * foot, y + 5.0F * cool + 0.5F, z + Mth.sin(a1) * foot).color(1.0F, 0.4F, 0.1F, 0.0F).endVertex();
+            buffer.vertex(matrix, x + Mth.cos(a0) * foot, y + 5.0F * cool + 0.5F, z + Mth.sin(a0) * foot).color(1.0F, 0.4F, 0.1F, 0.0F).endVertex();
         }
     }
 }

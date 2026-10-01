@@ -13,14 +13,25 @@ final class SphereMesh {
         void color(float x, float y, float z, float[] out);
     }
 
+    @FunctionalInterface
+    interface Bumps {
+        /** @return how far the surface point with the given unit normal sits from the centre, around 1 */
+        float scale(float x, float y, float z);
+    }
+
     private final int rings;
     private final int sectors;
     private final float[] normals;
     private final float[] colors;
     private final float[] world;
     private final float[] light;
+    private final float[] scale;
 
     SphereMesh(int rings, int sectors, Surface surface) {
+        this(rings, sectors, surface, null);
+    }
+
+    SphereMesh(int rings, int sectors, Surface surface, Bumps bumps) {
         this.rings = rings;
         this.sectors = sectors;
         int count = (rings + 1) * (sectors + 1);
@@ -28,6 +39,7 @@ final class SphereMesh {
         colors = new float[count * 3];
         world = new float[count * 3];
         light = new float[count];
+        scale = new float[count];
         float[] rgb = new float[3];
         int index = 0;
         for (int ring = 0; ring <= rings; ring++) {
@@ -41,6 +53,7 @@ final class SphereMesh {
                 normals[index] = x;
                 normals[index + 1] = y;
                 normals[index + 2] = z;
+                scale[index / 3] = bumps == null ? 1.0F : bumps.scale(x, y, z);
                 surface.color(x, y, z, rgb);
                 colors[index] = rgb[0];
                 colors[index + 1] = rgb[1];
@@ -107,16 +120,18 @@ final class SphereMesh {
     private void vertex(BufferBuilder buffer, Matrix4f view, Vector3f center, float radius, int v) {
         int i = v * 3;
         float shade = light[v];
-        buffer.vertex(view, center.x + world[i] * radius, center.y + world[i + 1] * radius, center.z + world[i + 2] * radius)
+        float r = radius * scale[v];
+        buffer.vertex(view, center.x + world[i] * r, center.y + world[i + 1] * r, center.z + world[i + 2] * r)
                 .color(colors[i] * shade, colors[i + 1] * shade, colors[i + 2] * shade, 1.0F).endVertex();
     }
 
     private void rimVertex(BufferBuilder buffer, Matrix4f view, Vector3f eye, Vector3f center, float radius, int v,
                            float red, float green, float blue, float strength) {
         int i = v * 3;
-        float x = center.x + world[i] * radius;
-        float y = center.y + world[i + 1] * radius;
-        float z = center.z + world[i + 2] * radius;
+        float r = radius * scale[v];
+        float x = center.x + world[i] * r;
+        float y = center.y + world[i + 1] * r;
+        float z = center.z + world[i + 2] * r;
         float dx = eye.x - x;
         float dy = eye.y - y;
         float dz = eye.z - z;

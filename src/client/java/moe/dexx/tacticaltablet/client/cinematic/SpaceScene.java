@@ -12,6 +12,7 @@ import com.mojang.blaze3d.vertex.VertexFormat;
 import com.mojang.blaze3d.vertex.VertexSorting;
 import java.util.Random;
 import moe.dexx.tacticaltablet.strike.CinematicTimeline.Segment;
+import moe.dexx.tacticaltablet.strike.StrikeType;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.renderer.GameRenderer;
@@ -34,8 +35,8 @@ public final class SpaceScene {
     private static final int SPARK_COUNT = 48;
 
     private static final float MUZZLE_Z = -72.0F;
-    private static final Vector3f EARTH_CENTER = new Vector3f(0.0F, -60.0F, -900.0F);
-    private static final float EARTH_RADIUS = 330.0F;
+    static final Vector3f EARTH_CENTER = new Vector3f(0.0F, -60.0F, -900.0F);
+    static final float EARTH_RADIUS = 330.0F;
     /** Where the cannon's line of fire meets the planet. */
     private static final float EARTH_SURFACE_Z = -575.5F;
     /** Saturn as seen from the cannon's station beyond it, off to one side of the line of fire. */
@@ -44,17 +45,17 @@ public final class SpaceScene {
     /** How far down the barrel's axis the home planet is drawn while the camera is at the cannon. */
     private static final float HOME_DOT_Z = -4400.0F;
 
-    private static SphereMesh jupiter;
-    private static SphereMesh saturn;
-    private static SphereMesh earth;
-    private static SphereMesh moon;
+    static SphereMesh jupiter;
+    static SphereMesh saturn;
+    static SphereMesh earth;
+    static SphereMesh moon;
     private static float[] stars;
     private static float[] sparks;
 
     private SpaceScene() {
     }
 
-    public static void render(GuiGraphics graphics, Segment segment, double progress, double seconds) {
+    public static void render(GuiGraphics graphics, StrikeType type, Segment segment, double progress, double seconds) {
         build();
         graphics.flush();
         Window window = Minecraft.getInstance().getWindow();
@@ -76,10 +77,16 @@ public final class SpaceScene {
         try {
             float p = (float) progress;
             float time = (float) seconds;
-            switch (segment) {
-                case JUPITER -> jupiterShot(p, time);
-                case SATURN -> saturnShot(p, time);
-                default -> orbitShot(segment, p, time);
+            switch (type) {
+                case KINETIC -> KineticShots.render(segment, p, time);
+                case METEOR -> MeteorShots.render(segment, p, time);
+                default -> {
+                    switch (segment) {
+                        case JUPITER -> jupiterShot(p, time);
+                        case SATURN -> saturnShot(p, time);
+                        default -> orbitShot(segment, p, time);
+                    }
+                }
             }
         } finally {
             RenderSystem.disableBlend();
@@ -234,7 +241,7 @@ public final class SpaceScene {
     // ---------------------------------------------------------------- scene pieces
 
     /** Stars and the sun, drawn behind everything. */
-    private static void backdrop(Vector3f eye, Vector3f center, Vector3f sun) {
+    static void backdrop(Vector3f eye, Vector3f center, Vector3f sun) {
         // Rotation only: the sky stays infinitely far away.
         Matrix4f view = new Matrix4f().lookAt(0.0F, 0.0F, 0.0F, center.x - eye.x, center.y - eye.y, center.z - eye.z, 0.0F, 1.0F, 0.0F);
         RenderSystem.enableBlend();
@@ -275,7 +282,7 @@ public final class SpaceScene {
         end(buffer);
     }
 
-    private static void rings(BufferBuilder buffer, Matrix4f view, Vector3f center, Matrix3f tilt, Vector3f sun,
+    static void rings(BufferBuilder buffer, Matrix4f view, Vector3f center, Matrix3f tilt, Vector3f sun,
                               float planetRadius, float inner, float outer) {
         int radial = 48;
         int around = 144;
@@ -394,43 +401,43 @@ public final class SpaceScene {
 
     // ---------------------------------------------------------------- primitives
 
-    private static BufferBuilder begin() {
+    static BufferBuilder begin() {
         BufferBuilder buffer = Tesselator.getInstance().getBuilder();
         buffer.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR);
         return buffer;
     }
 
-    private static void end(BufferBuilder buffer) {
+    static void end(BufferBuilder buffer) {
         BufferUploader.drawWithShader(buffer.end());
     }
 
-    private static void opaque() {
+    static void opaque() {
         RenderSystem.disableBlend();
         RenderSystem.enableDepthTest();
         RenderSystem.depthMask(true);
     }
 
-    private static void translucent() {
+    static void translucent() {
         RenderSystem.enableBlend();
         RenderSystem.defaultBlendFunc();
         RenderSystem.enableDepthTest();
         RenderSystem.depthMask(false);
     }
 
-    private static void additive() {
+    static void additive() {
         RenderSystem.enableBlend();
         RenderSystem.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE);
         RenderSystem.enableDepthTest();
         RenderSystem.depthMask(false);
     }
 
-    private static float shade(Vector3f sun, float nx, float ny, float nz, float emissive) {
+    static float shade(Vector3f sun, float nx, float ny, float nz, float emissive) {
         float lit = 0.14F + 0.86F * Math.max(0.0F, nx * sun.x + ny * sun.y + nz * sun.z);
         return emissive + (1.0F - emissive) * lit;
     }
 
     /** A round tube or cone along the Z axis. */
-    private static void tube(BufferBuilder buffer, Matrix4f view, Vector3f sun, float z0, float r0, float z1, float r1,
+    static void tube(BufferBuilder buffer, Matrix4f view, Vector3f sun, float z0, float r0, float z1, float r1,
                              int sides, float red, float green, float blue, float emissive, float alpha) {
         for (int i = 0; i < sides; i++) {
             float a0 = Mth.TWO_PI * i / sides;
@@ -449,7 +456,7 @@ public final class SpaceScene {
     }
 
     /** A flat ring facing along the Z axis; facing is +1 or -1. */
-    private static void disc(BufferBuilder buffer, Matrix4f view, Vector3f sun, float z, float inner, float outer, int sides,
+    static void disc(BufferBuilder buffer, Matrix4f view, Vector3f sun, float z, float inner, float outer, int sides,
                              float facing, float red, float green, float blue, float emissive) {
         float light = shade(sun, 0.0F, 0.0F, facing, emissive);
         for (int i = 0; i < sides; i++) {
@@ -466,7 +473,7 @@ public final class SpaceScene {
         }
     }
 
-    private static void box(BufferBuilder buffer, Matrix4f view, Vector3f sun, float x0, float y0, float z0,
+    static void box(BufferBuilder buffer, Matrix4f view, Vector3f sun, float x0, float y0, float z0,
                             float x1, float y1, float z1, float red, float green, float blue) {
         face(buffer, view, shade(sun, -1.0F, 0.0F, 0.0F, 0.0F), red, green, blue, x0, y0, z0, x0, y0, z1, x0, y1, z1, x0, y1, z0);
         face(buffer, view, shade(sun, 1.0F, 0.0F, 0.0F, 0.0F), red, green, blue, x1, y0, z0, x1, y0, z1, x1, y1, z1, x1, y1, z0);
@@ -476,7 +483,7 @@ public final class SpaceScene {
         face(buffer, view, shade(sun, 0.0F, 0.0F, 1.0F, 0.0F), red, green, blue, x0, y0, z1, x1, y0, z1, x1, y1, z1, x0, y1, z1);
     }
 
-    private static void face(BufferBuilder buffer, Matrix4f view, float light, float red, float green, float blue,
+    static void face(BufferBuilder buffer, Matrix4f view, float light, float red, float green, float blue,
                              float ax, float ay, float az, float bx, float by, float bz,
                              float cx, float cy, float cz, float dx, float dy, float dz) {
         float r = red * light;
@@ -489,7 +496,7 @@ public final class SpaceScene {
     }
 
     /** A camera-facing disc, bright in the middle and fading to nothing at the edge. Needs additive blending. */
-    private static void glow(BufferBuilder buffer, Matrix4f view, Vector3f right, Vector3f up, float x, float y, float z,
+    static void glow(BufferBuilder buffer, Matrix4f view, Vector3f right, Vector3f up, float x, float y, float z,
                              float radius, float red, float green, float blue, float alpha) {
         if (alpha <= 0.0F || radius <= 0.0F) {
             return;
@@ -512,7 +519,7 @@ public final class SpaceScene {
     }
 
     /** A streak of light between two points, turned to face the camera. Needs additive blending. */
-    private static void beam(BufferBuilder buffer, Matrix4f view, Vector3f eye, Vector3f from, Vector3f to, float width,
+    static void beam(BufferBuilder buffer, Matrix4f view, Vector3f eye, Vector3f from, Vector3f to, float width,
                              float red, float green, float blue, float alpha) {
         Vector3f axis = new Vector3f(to).sub(from);
         Vector3f side = new Vector3f(eye).sub(from).cross(axis);
@@ -531,18 +538,18 @@ public final class SpaceScene {
         }
     }
 
-    private static Vector3f mix(Vector3f from, Vector3f to, float amount) {
+    static Vector3f mix(Vector3f from, Vector3f to, float amount) {
         return new Vector3f(from).lerp(to, amount);
     }
 
-    private static float ease(float value) {
+    static float ease(float value) {
         float clamped = Mth.clamp(value, 0.0F, 1.0F);
         return clamped * clamped * (3.0F - 2.0F * clamped);
     }
 
     // ---------------------------------------------------------------- generated content
 
-    private static void build() {
+    static void build() {
         if (stars != null) {
             return;
         }
@@ -639,7 +646,7 @@ public final class SpaceScene {
         out[2] = tone * 0.92F;
     }
 
-    private static float smooth(float value) {
+    static float smooth(float value) {
         return value * value * (3.0F - 2.0F * value);
     }
 
@@ -651,7 +658,7 @@ public final class SpaceScene {
     }
 
     /** Smooth value noise in 0..1. */
-    private static float noise(float x, float y, float z) {
+    static float noise(float x, float y, float z) {
         int ix = Mth.floor(x);
         int iy = Mth.floor(y);
         int iz = Mth.floor(z);
@@ -665,7 +672,7 @@ public final class SpaceScene {
         return Mth.lerp(fz, Mth.lerp(fy, x00, x10), Mth.lerp(fy, x01, x11));
     }
 
-    private static float fbm(float x, float y, float z, int octaves) {
+    static float fbm(float x, float y, float z, int octaves) {
         float sum = 0.0F;
         float weight = 0.5F;
         float total = 0.0F;

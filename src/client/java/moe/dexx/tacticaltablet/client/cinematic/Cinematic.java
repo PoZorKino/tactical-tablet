@@ -7,6 +7,7 @@ import moe.dexx.tacticaltablet.client.state.ClientStrikes;
 import moe.dexx.tacticaltablet.net.StrikeState;
 import moe.dexx.tacticaltablet.strike.CinematicTimeline;
 import moe.dexx.tacticaltablet.strike.CinematicTimeline.Segment;
+import moe.dexx.tacticaltablet.strike.StrikeType;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.util.Mth;
@@ -215,12 +216,14 @@ public final class Cinematic {
 
     /**
      * Colour laid over the whole picture at the given moment, as ARGB: black between shots, white around the shot
-     * and the first hit.
+     * and the first hit, orange as the kinetic rod and the meteor burn into the atmosphere.
      */
-    public static int fade(double seconds, int salvos) {
+    public static int fade(double seconds, int salvos, StrikeType type) {
         double black = 0.0;
         double white = 0.0;
+        double orange = 0.0;
         double progress = CinematicTimeline.progress(seconds, salvos);
+        boolean burning = type == StrikeType.KINETIC || type == StrikeType.METEOR;
         switch (CinematicTimeline.segment(seconds, salvos)) {
             case ASCENT -> black = (progress - 0.6) / 0.4;
             case JUPITER -> black = Math.max(1.0 - (seconds - CinematicTimeline.ASCENT_END) / 0.5,
@@ -228,17 +231,26 @@ public final class Cinematic {
             case SATURN -> black = Math.max(1.0 - (seconds - CinematicTimeline.JUPITER_END) / 0.3,
                     1.0 - (CinematicTimeline.SATURN_END - seconds) / 0.3);
             case CANNON -> black = 1.0 - (seconds - CinematicTimeline.SATURN_END) / 0.3;
-            // The cut from the cannon beyond Saturn to the home planet is hidden in a flash of the beam.
+            // The cut from the weapon to the home planet is hidden in a flash.
             case FIRE -> white = Math.max(0.9 * (1.0 - (seconds - CinematicTimeline.CANNON_END) / 0.45),
                     1.0 - (CinematicTimeline.FIRE_END - seconds) / 0.25);
-            case DESCENT -> white = Math.max(1.0 - (seconds - CinematicTimeline.FIRE_END) / 0.35,
-                    1.0 - (CinematicTimeline.DESCENT_END - seconds) / 0.6);
+            case DESCENT -> {
+                white = 1.0 - (seconds - CinematicTimeline.FIRE_END) / 0.35;
+                if (burning) {
+                    orange = (progress - 0.72) / 0.28;
+                } else {
+                    white = Math.max(white, 1.0 - (CinematicTimeline.DESCENT_END - seconds) / 0.6);
+                }
+            }
             case IMPACT -> white = 1.0 - (seconds - CinematicTimeline.DESCENT_END) / 0.7;
             default -> {
             }
         }
         if (white > 0.0) {
             return (int) (Mth.clamp(white, 0.0, 1.0) * 255.0) << 24 | 0xFFFFFF;
+        }
+        if (orange > 0.0) {
+            return (int) (Mth.clamp(orange, 0.0, 1.0) * 255.0) << 24 | 0xFF4A12;
         }
         return (int) (Mth.clamp(black, 0.0, 1.0) * 255.0) << 24;
     }

@@ -27,6 +27,7 @@ public final class ZoneRing {
     private static final float WALL_BELOW = 12.0F;
     private static final float WALL_ABOVE = 28.0F;
     private static final float MARKER_HEIGHT = 96.0F;
+    private static final float BEACON_HEIGHT = 420.0F;
 
     private ZoneRing() {
     }
@@ -41,7 +42,7 @@ public final class ZoneRing {
             // A pending strike pulses, faster as the shot approaches.
             double speed = own.phase() == StrikePhase.COUNTDOWN ? 300.0 : 120.0;
             float pulse = 0.55F + 0.45F * (float) Math.sin(System.currentTimeMillis() / speed);
-            draw(context, own.target().getX(), own.target().getY(), own.target().getZ(), own.radius(), 1.0F, 0.35F, 0.2F, pulse);
+            draw(context, own.target().getX(), own.target().getY(), own.target().getZ(), own.radius(), 1.0F, 0.35F, 0.2F, pulse, true);
             return;
         }
         if (own != null) {
@@ -50,12 +51,12 @@ public final class ZoneRing {
         }
         StrikeParams params = HeldTablet.params(minecraft.player);
         if (params != null && params.hasTarget()) {
-            draw(context, params.targetX(), params.targetY(), params.targetZ(), params.radius(), 0.2F, 0.82F, 1.0F, 0.8F);
+            draw(context, params.targetX(), params.targetY(), params.targetZ(), params.radius(), 0.2F, 0.82F, 1.0F, 0.8F, false);
         }
     }
 
     private static void draw(WorldRenderContext context, int targetX, int targetY, int targetZ, int radius,
-                             float red, float green, float blue, float strength) {
+                             float red, float green, float blue, float strength, boolean pending) {
         Vec3 camera = context.camera().getPosition();
         PoseStack pose = context.matrixStack();
         pose.pushPose();
@@ -94,17 +95,33 @@ public final class ZoneRing {
             buffer.vertex(matrix, x0, -WALL_BELOW, z0).color(red, green, blue, 0.0F).endVertex();
         }
 
-        // Marker: two crossed vertical planes at the target.
-        float half = 0.35F;
-        float markerAlpha = 0.6F * strength;
+        // Marker: two crossed vertical planes at the target; a launched strike gets a tall beacon and a hexagon.
+        float half = pending ? 0.6F : 0.35F;
+        float height = pending ? BEACON_HEIGHT : MARKER_HEIGHT;
+        float markerAlpha = (pending ? 0.9F : 0.6F) * strength;
         buffer.vertex(matrix, -half, 0.0F, 0.0F).color(red, green, blue, markerAlpha).endVertex();
         buffer.vertex(matrix, half, 0.0F, 0.0F).color(red, green, blue, markerAlpha).endVertex();
-        buffer.vertex(matrix, half, MARKER_HEIGHT, 0.0F).color(red, green, blue, 0.0F).endVertex();
-        buffer.vertex(matrix, -half, MARKER_HEIGHT, 0.0F).color(red, green, blue, 0.0F).endVertex();
+        buffer.vertex(matrix, half, height, 0.0F).color(red, green, blue, 0.0F).endVertex();
+        buffer.vertex(matrix, -half, height, 0.0F).color(red, green, blue, 0.0F).endVertex();
         buffer.vertex(matrix, 0.0F, 0.0F, -half).color(red, green, blue, markerAlpha).endVertex();
         buffer.vertex(matrix, 0.0F, 0.0F, half).color(red, green, blue, markerAlpha).endVertex();
-        buffer.vertex(matrix, 0.0F, MARKER_HEIGHT, half).color(red, green, blue, 0.0F).endVertex();
-        buffer.vertex(matrix, 0.0F, MARKER_HEIGHT, -half).color(red, green, blue, 0.0F).endVertex();
+        buffer.vertex(matrix, 0.0F, height, half).color(red, green, blue, 0.0F).endVertex();
+        buffer.vertex(matrix, 0.0F, height, -half).color(red, green, blue, 0.0F).endVertex();
+        if (pending) {
+            float hex = Math.min(Math.max(radius * 0.08F, 5.0F), 20.0F);
+            for (int i = 0; i < 6; i++) {
+                float a0 = Mth.TWO_PI * i / 6;
+                float a1 = Mth.TWO_PI * (i + 1) / 6;
+                float x0 = Mth.cos(a0) * hex;
+                float z0 = Mth.sin(a0) * hex;
+                float x1 = Mth.cos(a1) * hex;
+                float z1 = Mth.sin(a1) * hex;
+                buffer.vertex(matrix, x0, 0.0F, z0).color(1.0F, 0.6F, 0.2F, markerAlpha).endVertex();
+                buffer.vertex(matrix, x1, 0.0F, z1).color(1.0F, 0.6F, 0.2F, markerAlpha).endVertex();
+                buffer.vertex(matrix, x1, 5.0F, z1).color(1.0F, 0.6F, 0.2F, 0.0F).endVertex();
+                buffer.vertex(matrix, x0, 5.0F, z0).color(1.0F, 0.6F, 0.2F, 0.0F).endVertex();
+            }
+        }
 
         BufferUploader.drawWithShader(buffer.end());
 

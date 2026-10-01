@@ -63,7 +63,7 @@ public record StrikeParams(
     }
 
     public boolean modifiesWorld() {
-        return type == StrikeType.ORBITAL_LASER && destroyBlocks;
+        return type != StrikeType.VISUAL_ONLY && destroyBlocks;
     }
 
     public StrikeParams withTarget(int x, int y, int z) {

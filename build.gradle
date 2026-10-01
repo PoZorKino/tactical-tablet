@@ -42,7 +42,7 @@ loom {
             client()
             name "Smoke"
             source sourceSets.client
-            vmArg "-Dtactical_tablet.smoke=true"
+            vmArg "-Dtactical_tablet.smoke=${project.findProperty('smoke') ?: 'ORBITAL_LASER'}"
             runDir "build/smoke"
         }
         benchmark {

@@ -67,6 +67,8 @@ public final class DestructionJob {
         CompletableFuture<Boolean> existsProbe;
         boolean entitiesDone;
         boolean changed;
+        /** Set when the chunk was edited while it was not yet ticking: the per-block updates were not sent then. */
+        boolean editedWhileIdle;
         int nextColumn;
 
         Slot(ChunkPos pos) {
@@ -216,6 +218,9 @@ public final class DestructionJob {
             }
             slot.entitiesDone = true;
         }
+        if (!level.shouldTickBlocksAt(slot.pos.toLong())) {
+            slot.editedWhileIdle = true;
+        }
         while (slot.nextColumn < 256) {
             processColumn(chunk, slot, slot.nextColumn & 15, slot.nextColumn >> 4);
             slot.nextColumn++;
@@ -350,8 +355,9 @@ public final class DestructionJob {
         // thread catches up, this flag makes the game relight it from scratch on the next load.
         chunk.setLightCorrect(false);
         chunk.setUnsaved(true);
-        if (!level.shouldTickBlocksAt(slot.pos.toLong())) {
-            // blockChanged() only reaches clients for ticking chunks; edge-of-view chunks get the whole chunk.
+        if (slot.editedWhileIdle || !level.shouldTickBlocksAt(slot.pos.toLong())) {
+            // blockChanged() only reaches clients for ticking chunks, and a chunk can start ticking halfway through
+            // its edit; whenever any of the edit may have been missed, the client gets the whole chunk.
             List<ServerPlayer> watchers = level.getChunkSource().chunkMap.getPlayers(slot.pos, false);
             if (!watchers.isEmpty()) {
                 ClientboundLevelChunkWithLightPacket packet =

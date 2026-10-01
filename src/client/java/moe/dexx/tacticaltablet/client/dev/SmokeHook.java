@@ -5,6 +5,7 @@ import moe.dexx.tacticaltablet.client.cinematic.Cinematic;
 import moe.dexx.tacticaltablet.client.gui.TabletScreen;
 import moe.dexx.tacticaltablet.client.net.ClientNetworking;
 import moe.dexx.tacticaltablet.strike.StrikeParams;
+import moe.dexx.tacticaltablet.strike.StrikeType;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.Screenshot;
@@ -24,7 +25,7 @@ import net.minecraft.world.level.levelgen.presets.WorldPresets;
  */
 public final class SmokeHook {
     /** Cinematic seconds at which a screenshot is taken. */
-    private static final double[] SHOTS = {1.5, 5.2, 8.0, 12.0, 15.0, 19.0, 20.4, 23.0, 24.6, 26.5, 29.0};
+    private static final double[] SHOTS = {1.5, 4.8, 5.8, 7.0, 8.8, 11.0, 13.0, 15.0, 17.0, 18.8, 19.9, 20.5, 21.0, 22.0, 23.0, 23.8, 24.5, 26.0, 28.0, 29.5};
 
     private static boolean worldRequested;
     private static int ticksInWorld;
@@ -63,31 +64,39 @@ public final class SmokeHook {
                 minecraft.player.connection.sendCommand("time set noon");
             }
             case 100 -> minecraft.setScreen(new TabletScreen());
-            case 125 -> shot(minecraft, "00-tablet");
+            case 125 -> shot(minecraft, "tablet");
             case 130 -> {
                 minecraft.setScreen(null);
                 BlockPos target = minecraft.player.blockPosition().offset(70, -1, 0);
                 ClientNetworking.sendLaunch(StrikeParams.DEFAULT.withTarget(target.getX(), target.getY(), target.getZ())
-                        .withRadius(30).withSalvos(3).withCountdown(3));
+                        .withRadius(30).withSalvos(3).withCountdown(3).withType(smokeType()));
             }
-            case 160 -> shot(minecraft, "01-countdown");
+            case 160 -> shot(minecraft, "countdown");
             default -> {
             }
         }
         if (Cinematic.isActive()) {
             double seconds = Cinematic.seconds(0.0F);
             if (nextShot < SHOTS.length && seconds >= SHOTS[nextShot]) {
-                shot(minecraft, String.format(Locale.ROOT, "%02d-cinematic-%.1f", nextShot + 2, SHOTS[nextShot]));
+                shot(minecraft, String.format(Locale.ROOT, "shot_%02d", nextShot + 1));
                 nextShot++;
             }
         } else if (nextShot > 0) {
             ticksAfterEnd++;
             if (ticksAfterEnd == 60) {
-                shot(minecraft, "90-after");
+                shot(minecraft, "after");
             }
         }
-        if (ticksAfterEnd >= 100 || ticksInWorld > 1600) {
+        if (ticksAfterEnd >= 100 || ticksInWorld > 2200) {
             minecraft.stop();
+        }
+    }
+
+    private static StrikeType smokeType() {
+        try {
+            return StrikeType.valueOf(System.getProperty("tactical_tablet.smoke").toUpperCase(Locale.ROOT));
+        } catch (RuntimeException e) {
+            return StrikeType.ORBITAL_LASER;
         }
     }
 

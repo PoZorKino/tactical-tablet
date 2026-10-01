@@ -1,5 +1,6 @@
 package moe.dexx.tacticaltablet;
 
+import moe.dexx.tacticaltablet.item.ModItems;
 import net.fabricmc.api.ModInitializer;
 import net.minecraft.resources.ResourceLocation;
 import org.slf4j.Logger;
@@ -15,6 +16,7 @@ public final class TacticalTablet implements ModInitializer {
 
     @Override
     public void onInitialize() {
+        ModItems.register();
         LOGGER.info("Tactical Tablet loaded");
     }
 }

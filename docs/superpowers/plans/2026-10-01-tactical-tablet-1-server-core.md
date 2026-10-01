@@ -1547,7 +1547,7 @@ loom {
             name "Game Test"
             source sourceSets.gametest
             vmArg "-Dfabric-api.gametest"
-            vmArg "-Dfabric-api.gametest.report-file=junit.xml"
+            vmArg "-Dfabric-api.gametest.report-file=reports/junit.xml"
             runDir "build/gametest"
         }
     }

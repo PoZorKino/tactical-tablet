@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "id": "tactical_tablet_gametest",
+  "version": "1.0.0",
+  "name": "Tactical Tablet Game Tests",
+  "environment": "*",
+  "entrypoints": {
+    "fabric-gametest": [
+      "moe.dexx.tacticaltablet.gametest.ItemGameTests"
+    ]
+  },
+  "depends": {
+    "tactical_tablet": "*",
+    "fabric-gametest-api-v1": "*"
+  }
+}

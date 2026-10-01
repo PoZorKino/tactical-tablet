@@ -9,6 +9,13 @@ base {
     archivesName = project.archives_base_name
 }
 
+sourceSets {
+    gametest {
+        compileClasspath += sourceSets.main.compileClasspath + sourceSets.main.output
+        runtimeClasspath += sourceSets.main.runtimeClasspath + sourceSets.main.output
+    }
+}
+
 loom {
     splitEnvironmentSourceSets()
 
@@ -16,6 +23,20 @@ loom {
         "tactical_tablet" {
             sourceSet sourceSets.main
             sourceSet sourceSets.client
+        }
+        "tactical_tablet_gametest" {
+            sourceSet sourceSets.gametest
+        }
+    }
+
+    runs {
+        gametest {
+            server()
+            name "Game Test"
+            source sourceSets.gametest
+            vmArg "-Dfabric-api.gametest"
+            vmArg "-Dfabric-api.gametest.report-file=reports/junit.xml"
+            runDir "build/gametest"
         }
     }
 }

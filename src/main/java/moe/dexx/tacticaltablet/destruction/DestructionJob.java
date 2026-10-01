@@ -56,6 +56,9 @@ public final class DestructionJob {
     private int fires;
     private long blocksRemoved;
     private boolean stopped;
+    private final long startNanos = System.nanoTime();
+    private long endNanos;
+    private boolean ended;
 
     private static final class Slot {
         final ChunkPos pos;
@@ -105,6 +108,9 @@ public final class DestructionJob {
             }
         }
         refillWindow();
+        if (isFinished()) {
+            markEnded();
+        }
         return isFinished();
     }
 
@@ -114,6 +120,14 @@ public final class DestructionJob {
             release(slot);
         }
         window.clear();
+        markEnded();
+    }
+
+    private void markEnded() {
+        if (!ended) {
+            ended = true;
+            endNanos = System.nanoTime();
+        }
     }
 
     public boolean isFinished() {
@@ -134,6 +148,11 @@ public final class DestructionJob {
 
     public long blocksRemoved() {
         return blocksRemoved;
+    }
+
+    /** @return how long the job has been running; frozen once it is finished */
+    public long elapsedNanos() {
+        return (ended ? endNanos : System.nanoTime()) - startNanos;
     }
 
     private static boolean expired(long deadlineNanos) {

@@ -1,5 +1,6 @@
 package moe.dexx.tacticaltablet;
 
+import moe.dexx.tacticaltablet.bench.BenchmarkHook;
 import moe.dexx.tacticaltablet.command.TabletCommands;
 import moe.dexx.tacticaltablet.config.ServerConfig;
 import moe.dexx.tacticaltablet.destruction.TickTimeTracker;
@@ -46,6 +47,7 @@ public final class TacticalTablet implements ModInitializer {
         ModItems.register();
         ServerNetworking.register();
         TabletCommands.register();
+        BenchmarkHook.register();
 
         ServerLifecycleEvents.SERVER_STARTING.register(server -> {
             config = ServerConfig.load(FabricLoader.getInstance().getConfigDir().resolve("tactical_tablet-server.json"));

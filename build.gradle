@@ -38,6 +38,13 @@ loom {
             vmArg "-Dfabric-api.gametest.report-file=reports/junit.xml"
             runDir "build/gametest"
         }
+        benchmark {
+            server()
+            name "Benchmark"
+            vmArg "-Dtactical_tablet.benchmark=${project.findProperty('bench') ?: '100,5'}"
+            programArg "nogui"
+            runDir "build/benchmark"
+        }
     }
 }
 

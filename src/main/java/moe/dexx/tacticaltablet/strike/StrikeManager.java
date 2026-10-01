@@ -240,7 +240,6 @@ public final class StrikeManager {
         strike.phaseStartTick = startTick;
         if (phase == StrikePhase.IMPACT && strike.params().modifiesWorld() && strike.job == null) {
             strike.job = new DestructionJob(level, strike.id(), strike.target(), strike.params(), config);
-            strike.jobStartNanos = System.nanoTime();
         }
         if (phase == StrikePhase.DONE) {
             closeJob(strike);
@@ -260,7 +259,7 @@ public final class StrikeManager {
             return;
         }
         strike.job.stop();
-        long wallMillis = (System.nanoTime() - strike.jobStartNanos) / 1_000_000L;
+        long wallMillis = strike.job.elapsedNanos() / 1_000_000L;
         lastSummary = new StrikeSummary(strike.owner(), strike.job.chunksDone(), strike.job.chunksTotal(),
                 strike.job.blocksRemoved(), wallMillis);
         TacticalTablet.LOGGER.info("Strike by {} finished: {}/{} chunks, {} blocks removed, {} ms",

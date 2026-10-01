@@ -164,6 +164,19 @@ public class DestructionGameTests implements FabricGameTest {
     }
 
     @GameTest(template = EMPTY_STRUCTURE)
+    public void elapsedTimeStopsWhenTheJobFinishes(GameTestHelper helper) {
+        TestArena.buildSlab(helper);
+        DestructionJob job = job(helper, true, true);
+        helper.assertTrue(job.tick(System.nanoTime() + FIVE_SECONDS), "a four-chunk job must finish in one tick");
+        long elapsed = job.elapsedNanos();
+        helper.assertTrue(elapsed > 0, "a finished job must report the time it took");
+        helper.runAfterDelay(20, () -> {
+            helper.assertTrue(job.elapsedNanos() == elapsed, "the elapsed time must not grow after the job has finished");
+            helper.succeed();
+        });
+    }
+
+    @GameTest(template = EMPTY_STRUCTURE)
     public void overlappingJobsBothFinish(GameTestHelper helper) {
         TestArena.buildSlab(helper);
         DestructionJob first = job(helper, true, true);

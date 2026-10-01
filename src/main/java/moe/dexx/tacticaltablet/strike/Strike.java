@@ -17,7 +17,6 @@ public final class Strike {
     StrikePhase phase = StrikePhase.COUNTDOWN;
     long phaseStartTick;
     long lastProgressTick;
-    long jobStartNanos;
     DestructionJob job;
 
     Strike(UUID id, UUID owner, ResourceKey<Level> dimension, BlockPos target, StrikeParams params) {

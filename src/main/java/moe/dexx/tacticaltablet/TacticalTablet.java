@@ -3,6 +3,7 @@ package moe.dexx.tacticaltablet;
 import moe.dexx.tacticaltablet.config.ServerConfig;
 import moe.dexx.tacticaltablet.destruction.TickTimeTracker;
 import moe.dexx.tacticaltablet.item.ModItems;
+import moe.dexx.tacticaltablet.net.ServerNetworking;
 import moe.dexx.tacticaltablet.strike.PlayerOwnerProbe;
 import moe.dexx.tacticaltablet.strike.StrikeManager;
 import net.fabricmc.api.ModInitializer;
@@ -42,10 +43,11 @@ public final class TacticalTablet implements ModInitializer {
     @Override
     public void onInitialize() {
         ModItems.register();
+        ServerNetworking.register();
 
         ServerLifecycleEvents.SERVER_STARTING.register(server -> {
             config = ServerConfig.load(FabricLoader.getInstance().getConfigDir().resolve("tactical_tablet-server.json"));
-            manager = new StrikeManager(server, config, new PlayerOwnerProbe(config), StrikeManager.Listener.NONE, TICK_TIMES);
+            manager = new StrikeManager(server, config, new PlayerOwnerProbe(config), ServerNetworking.listener(server), TICK_TIMES);
         });
         ServerTickEvents.START_SERVER_TICK.register(server -> tickStartNanos = System.nanoTime());
         ServerTickEvents.END_SERVER_TICK.register(server -> {

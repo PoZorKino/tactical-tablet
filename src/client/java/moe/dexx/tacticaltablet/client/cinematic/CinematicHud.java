@@ -38,7 +38,8 @@ final class CinematicHud {
     static float warpAmount(StrikeType type, Segment segment, float p) {
         return switch (segment) {
             case ASCENT -> Math.max(0.0F, (p - 0.55F) * 2.2F);
-            case JUPITER -> type == StrikeType.METEOR ? 0.35F : Math.max(0.0F, 1.0F - p * 1.6F);
+            case JUPITER -> Math.max(0.0F, 1.0F - p * 1.7F);
+            case SATURN -> Math.max(0.0F, 0.8F - p * 2.2F);
             case FIRE -> type == StrikeType.KINETIC ? 0.8F * (1.0F - p * 0.4F) : 0.0F;
             case DESCENT -> switch (type) {
                 case KINETIC -> p < 0.45F ? 0.85F : 0.85F * (1.0F - (p - 0.45F) * 1.2F);

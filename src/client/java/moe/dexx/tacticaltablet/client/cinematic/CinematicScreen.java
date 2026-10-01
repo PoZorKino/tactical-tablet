@@ -79,8 +79,8 @@ public final class CinematicScreen extends Screen {
         CinematicHud.render(graphics, font, state, segment, (float) progress, seconds, bar + 10, height - bar - 14);
         if (type != StrikeType.ORBITAL_LASER) {
             // The picture breaks up as the projectile burns into the atmosphere and again at the moment of impact.
-            if (segment == Segment.DESCENT && progress > 0.82) {
-                CinematicHud.glitch(graphics, (float) ((progress - 0.82) / 0.18), 0xFF5A1F, seconds);
+            if (segment == Segment.DESCENT && progress > 0.88) {
+                CinematicHud.glitch(graphics, (float) ((progress - 0.88) / 0.12), 0xFF5A1F, seconds);
             } else if (segment == Segment.IMPACT && seconds - CinematicTimeline.DESCENT_END < 0.8) {
                 CinematicHud.glitch(graphics, (float) (1.0 - (seconds - CinematicTimeline.DESCENT_END) / 0.8), 0x4FA8FF, seconds);
             }

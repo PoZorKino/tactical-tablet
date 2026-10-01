@@ -1,13 +1,8 @@
 package moe.dexx.tacticaltablet.client.cinematic;
 
-import static moe.dexx.tacticaltablet.client.cinematic.SpaceScene.additive;
-import static moe.dexx.tacticaltablet.client.cinematic.SpaceScene.backdrop;
-import static moe.dexx.tacticaltablet.client.cinematic.SpaceScene.begin;
 import static moe.dexx.tacticaltablet.client.cinematic.SpaceScene.ease;
-import static moe.dexx.tacticaltablet.client.cinematic.SpaceScene.end;
 import static moe.dexx.tacticaltablet.client.cinematic.SpaceScene.glow;
 import static moe.dexx.tacticaltablet.client.cinematic.SpaceScene.mix;
-import static moe.dexx.tacticaltablet.client.cinematic.SpaceScene.opaque;
 import static moe.dexx.tacticaltablet.client.cinematic.SpaceScene.shade;
 
 import com.mojang.blaze3d.vertex.BufferBuilder;
@@ -19,11 +14,13 @@ import org.joml.Matrix4f;
 import org.joml.Vector3f;
 
 /**
- * The kinetic rod: a tungsten needle loaded into a ring accelerator around Jupiter, spun up over seven laps,
- * released, flown through a debris field and dropped onto the home planet.
+ * The kinetic rod: a tungsten needle loaded into a ring accelerator beside Saturn, spun up over seven laps and
+ * released along the line of fire. The ring lies in the weapon's frame, with its release point at the -Z side.
  */
 final class KineticShots {
     static final int LAPS = 7;
+    /** Angle of the breech on the ring; the tangent there points down the line of fire. */
+    static final float STATION = Mth.PI;
     private static final float RING_RADIUS = 118.0F;
     private static final float TUBE = 7.0F;
     private static final int SEGMENTS = 96;
@@ -31,8 +28,8 @@ final class KineticShots {
     private static final float ROD_LENGTH = 46.0F;
     private static final float ROD_RADIUS = 2.4F;
     private static final int ROCK_COUNT = 56;
-    private static final Matrix3f TILT = new Matrix3f().rotateZ(0.32F).rotateX(0.22F);
-    private static final Vector3f SUN = new Vector3f(-0.55F, 0.3F, 0.78F).normalize();
+    private static final Matrix3f TILT = new Matrix3f().rotateZ(0.3F);
+    private static final Vector3f SUN = Stage.SUN_LOCAL;
     private static final float[] ORANGE = {1.0F, 0.42F, 0.12F};
 
     private static SphereMesh rock;
@@ -41,7 +38,7 @@ final class KineticShots {
     private KineticShots() {
     }
 
-    /** Angle of the rod on the ring; it starts slowly and speeds up so that the seven laps get shorter. */
+    /** Angle covered since the start of the laps; slow at first, then faster, so each lap is shorter. */
     static float angle(float p) {
         return Mth.TWO_PI * LAPS * p * p;
     }
@@ -55,206 +52,119 @@ final class KineticShots {
         return 0.17F + 0.6F * p;
     }
 
-    static void render(Segment segment, float p, float time) {
-        buildRocks();
+    /** How far down the line of fire the released rod has got, in local units. */
+    static float released(float p) {
+        return p * p * 900.0F;
+    }
+
+    private static Vector3f outward() {
+        Vector3f out = new Vector3f();
+        ringPoint(STATION, out);
+        return out.normalize();
+    }
+
+    private static Vector3f tiltedUp() {
+        return TILT.transform(new Vector3f(0.0F, 1.0F, 0.0F));
+    }
+
+    static Vector3f releasePoint() {
+        Vector3f out = new Vector3f();
+        ringPoint(STATION, out);
+        return out;
+    }
+
+    /** Camera in the weapon's frame: around the ring, then inside its tube, then beside the release. */
+    static void camera(Segment segment, float p, float time, Vector3f eye, Vector3f center) {
+        if (segment == Segment.CANNON) {
+            float theta = STATION + angle(p);
+            float inside = ease(Mth.clamp((p - 0.42F) / 0.2F, 0.0F, 1.0F));
+            float orbit = 0.5F + time * 0.18F;
+            Vector3f outsideEye = new Vector3f(Mth.cos(orbit) * 330.0F, 120.0F - 40.0F * p, Mth.sin(orbit) * 330.0F);
+            Vector3f behind = new Vector3f();
+            ringPoint(theta - 0.02F - 0.05F * p, behind);
+            Vector3f ahead = new Vector3f();
+            ringPoint(theta + 0.35F, ahead);
+            eye.set(mix(outsideEye, behind, inside));
+            center.set(mix(new Vector3f(), ahead, inside));
+        } else {
+            Vector3f station = releasePoint();
+            Vector3f tangent = tangent(STATION);
+            eye.set(station).sub(new Vector3f(tangent).mul(70.0F)).add(new Vector3f(outward()).mul(34.0F)).add(new Vector3f(tiltedUp()).mul(14.0F));
+            center.set(station).add(new Vector3f(tangent).mul(160.0F + released(p) * 0.6F));
+        }
+    }
+
+    static void solid(BufferBuilder buffer, Stage stage, Segment segment, float p, float time) {
+        Matrix4f view = stage.device;
+        Vector3f station = releasePoint();
+        Vector3f tangent = tangent(STATION);
         switch (segment) {
-            case JUPITER -> approach(p, time);
-            case SATURN -> breech(p, time);
-            case CANNON -> laps(p, time);
-            case FIRE -> release(p, time);
-            case DESCENT -> fall(p, time);
+            case SATURN -> {
+                float lit = Mth.clamp((p - 0.5F) * 2.0F, 0.0F, 1.0F);
+                ring(buffer, view, lit, time, -1.0F);
+                station(buffer, view, station, outward(), tiltedUp());
+                rod(buffer, view, station, tangent, 0.2F + 0.8F * lit);
+            }
+            case CANNON -> {
+                float theta = STATION + angle(p);
+                Vector3f rodPos = new Vector3f();
+                ringPoint(theta, rodPos);
+                ring(buffer, view, 1.0F, time, theta);
+                float inside = ease(Mth.clamp((p - 0.42F) / 0.2F, 0.0F, 1.0F));
+                if (inside < 0.97F) {
+                    rod(buffer, view, rodPos, tangent(theta), 1.0F);
+                }
+            }
             default -> {
+                ring(buffer, view, 1.0F, time, STATION);
+                rod(buffer, view, new Vector3f(station).add(new Vector3f(tangent).mul(released(p))), tangent, 1.0F);
             }
         }
     }
 
-    // ---------------------------------------------------------------- shots
-
-    /** Warping in on Jupiter. */
-    private static void approach(float p, float time) {
-        float away = 1.0F - (1.0F - p) * (1.0F - p) * (1.0F - p);
-        float distance = Mth.lerp(away, 1500.0F, 250.0F);
-        Vector3f eye = new Vector3f(distance * 0.42F, distance * 0.08F, distance * 0.9F);
-        Vector3f center = new Vector3f();
-        Matrix4f view = new Matrix4f().lookAt(eye, center, new Vector3f(0.0F, 1.0F, 0.0F));
-        backdrop(eye, center, SUN);
-        Matrix3f spin = new Matrix3f(TILT).rotateY(time * 0.06F);
-        opaque();
-        BufferBuilder buffer = begin();
-        SpaceScene.jupiter.draw(buffer, view, center, 62.0F, spin, SUN, 0.035F);
-        SpaceScene.moon.draw(buffer, view, new Vector3f(104.0F, 8.0F, 40.0F), 4.5F, new Matrix3f(), SUN, 0.03F);
-        end(buffer);
-        additive();
-        buffer = begin();
-        SpaceScene.jupiter.drawRim(buffer, view, eye, center, 63.5F, spin, 0.95F, 0.72F, 0.5F, 0.45F);
-        end(buffer);
-    }
-
-    /** The accelerator ring warms up coil by coil with the rod waiting in the breech. */
-    private static void breech(float p, float time) {
-        Vector3f station = new Vector3f();
-        ringPoint(0.0F, station);
-        Vector3f outward = new Vector3f(1.0F, 0.0F, 0.0F);
-        TILT.transform(outward);
-        Vector3f up = new Vector3f(0.0F, 1.0F, 0.0F);
-        TILT.transform(up);
-        float sweep = (p - 0.5F) * 0.9F;
-        Vector3f eye = new Vector3f(outward).mul(150.0F - 60.0F * ease(p)).add(new Vector3f(up).mul(46.0F - 22.0F * p));
-        eye.add(station);
-        eye.rotateY(sweep * 0.25F);
-        Vector3f center = new Vector3f(station).mul(0.9F);
-        Matrix4f view = new Matrix4f().lookAt(eye, center, new Vector3f(0.0F, 1.0F, 0.0F));
-        backdrop(eye, center, SUN);
-        Matrix3f spin = new Matrix3f(TILT).rotateY(time * 0.06F);
-        opaque();
-        BufferBuilder buffer = begin();
-        SpaceScene.jupiter.draw(buffer, view, new Vector3f(), 62.0F, spin, SUN, 0.035F);
-        ring(buffer, view, p, time, -1.0F);
-        station(buffer, view, station, outward, up);
-        Vector3f tangent = tangent(0.0F);
-        rod(buffer, view, new Vector3f(station), tangent, 0.2F + 0.8F * p);
-        end(buffer);
-        additive();
-        buffer = begin();
-        Vector3f right = view.normalizedPositiveX(new Vector3f());
-        Vector3f camUp = view.normalizedPositiveY(new Vector3f());
-        // The loading flash at the breech.
-        float flash = (float) Math.max(0.0, Math.sin(p * Mth.PI * 3.0F)) * 0.5F;
-        glow(buffer, view, right, camUp, station.x, station.y, station.z, 22.0F + 10.0F * flash, 1.0F, 0.55F, 0.2F, 0.35F + flash);
-        end(buffer);
-    }
-
-    /** Seven laps, from outside the ring and then from inside its tube. */
-    private static void laps(float p, float time) {
-        float theta = angle(p);
-        Vector3f rodPos = new Vector3f();
-        ringPoint(theta, rodPos);
-        Vector3f tangent = tangent(theta);
-
-        float inside = ease(Mth.clamp((p - 0.42F) / 0.2F, 0.0F, 1.0F));
-        float orbit = 0.5F + time * 0.18F;
-        Vector3f outsideEye = new Vector3f(Mth.cos(orbit) * 330.0F, 120.0F - 40.0F * p, Mth.sin(orbit) * 330.0F);
-        Vector3f outsideCenter = new Vector3f();
-        // Inside the tube the camera rides the centre line a little behind the rod.
-        Vector3f behind = new Vector3f();
-        ringPoint(theta - 0.02F - 0.05F * p, behind);
-        Vector3f ahead = new Vector3f();
-        ringPoint(theta + 0.35F, ahead);
-        Vector3f eye = mix(outsideEye, behind, inside);
-        Vector3f center = mix(outsideCenter, ahead, inside);
-        Matrix4f view = new Matrix4f().lookAt(eye, center, new Vector3f(0.0F, 1.0F, 0.0F));
-        backdrop(eye, center, SUN);
-
-        Matrix3f spin = new Matrix3f(TILT).rotateY(time * 0.06F);
-        opaque();
-        BufferBuilder buffer = begin();
-        SpaceScene.jupiter.draw(buffer, view, new Vector3f(), 62.0F, spin, SUN, 0.035F);
-        ring(buffer, view, 1.0F, time, theta);
-        if (inside < 0.97F) {
-            rod(buffer, view, rodPos, tangent, 1.0F);
+    static void glows(BufferBuilder buffer, Stage stage, Segment segment, float p, float time) {
+        Matrix4f view = stage.device;
+        Vector3f right = stage.rightLocal;
+        Vector3f up = stage.upLocal;
+        Vector3f station = releasePoint();
+        Vector3f tangent = tangent(STATION);
+        switch (segment) {
+            case SATURN -> {
+                float flash = (float) Math.max(0.0, Math.sin(p * Mth.PI * 3.0F)) * 0.5F;
+                glow(buffer, view, right, up, station.x, station.y, station.z, 22.0F + 10.0F * flash, 1.0F, 0.55F, 0.2F, 0.3F + flash);
+            }
+            case CANNON -> {
+                float theta = STATION + angle(p);
+                Vector3f rodPos = new Vector3f();
+                ringPoint(theta, rodPos);
+                float inside = ease(Mth.clamp((p - 0.42F) / 0.2F, 0.0F, 1.0F));
+                Vector3f trail = new Vector3f();
+                for (int i = 0; i < 14; i++) {
+                    float fade = 1.0F - i / 14.0F;
+                    ringPoint(theta - i * 0.045F * (0.4F + p), trail);
+                    glow(buffer, view, right, up, trail.x, trail.y, trail.z, 7.0F * fade + 2.0F, 1.0F, 0.5F, 0.15F, 0.55F * fade * (1.0F - inside * 0.8F));
+                }
+                glow(buffer, view, right, up, rodPos.x, rodPos.y, rodPos.z, 15.0F + 12.0F * p, 1.0F, 0.75F, 0.4F, 0.8F * (1.0F - inside));
+            }
+            default -> {
+                float gone = released(p);
+                Vector3f rodPos = new Vector3f(station).add(new Vector3f(tangent).mul(gone));
+                Vector3f outward = outward();
+                Vector3f tUp = tiltedUp();
+                float ringRadius = 6.0F + 90.0F * ease(p);
+                for (int i = 0; i < 40; i++) {
+                    float a = Mth.TWO_PI * i / 40;
+                    Vector3f at = new Vector3f(station).add(new Vector3f(outward).mul(Mth.cos(a) * ringRadius)).add(new Vector3f(tUp).mul(Mth.sin(a) * ringRadius));
+                    glow(buffer, view, right, up, at.x, at.y, at.z, 6.0F, 1.0F, 0.85F, 0.6F, 0.5F * (1.0F - p));
+                }
+                glow(buffer, view, right, up, station.x, station.y, station.z, 40.0F * (1.0F - p) + 6.0F, 1.0F, 0.9F, 0.7F, 0.9F);
+                for (int i = 0; i < 24; i++) {
+                    float fade = 1.0F - i / 24.0F;
+                    Vector3f at = new Vector3f(rodPos).sub(new Vector3f(tangent).mul(i * 9.0F));
+                    glow(buffer, view, right, up, at.x, at.y, at.z, 4.0F + 6.0F * fade, 1.0F, 0.55F, 0.2F, 0.45F * fade);
+                }
+            }
         }
-        end(buffer);
-
-        additive();
-        buffer = begin();
-        Vector3f right = view.normalizedPositiveX(new Vector3f());
-        Vector3f up = view.normalizedPositiveY(new Vector3f());
-        // A comet tail along the last stretch of the ring.
-        Vector3f trail = new Vector3f();
-        for (int i = 0; i < 14; i++) {
-            float fade = 1.0F - i / 14.0F;
-            ringPoint(theta - i * 0.045F * (0.4F + p), trail);
-            glow(buffer, view, right, up, trail.x, trail.y, trail.z, 7.0F * fade + 2.0F, 1.0F, 0.5F, 0.15F, 0.55F * fade * (1.0F - inside * 0.8F));
-        }
-        glow(buffer, view, right, up, rodPos.x, rodPos.y, rodPos.z, 15.0F + 12.0F * p, 1.0F, 0.75F, 0.4F, 0.8F * (1.0F - inside));
-        end(buffer);
-    }
-
-    /** The rod leaves the ring along its tangent in a ring of white light. */
-    private static void release(float p, float time) {
-        Vector3f station = new Vector3f();
-        ringPoint(0.0F, station);
-        Vector3f tangent = tangent(0.0F);
-        Vector3f outward = new Vector3f(1.0F, 0.0F, 0.0F);
-        TILT.transform(outward);
-        Vector3f up = new Vector3f(0.0F, 1.0F, 0.0F);
-        TILT.transform(up);
-        float gone = p * p * 900.0F;
-        Vector3f rodPos = new Vector3f(station).add(new Vector3f(tangent).mul(gone));
-        Vector3f eye = new Vector3f(station).sub(new Vector3f(tangent).mul(70.0F)).add(new Vector3f(outward).mul(34.0F)).add(new Vector3f(up).mul(14.0F));
-        Vector3f center = new Vector3f(station).add(new Vector3f(tangent).mul(160.0F + gone * 0.6F));
-        Matrix4f view = new Matrix4f().lookAt(eye, center, new Vector3f(0.0F, 1.0F, 0.0F));
-        backdrop(eye, center, SUN);
-
-        Matrix3f spin = new Matrix3f(TILT).rotateY(time * 0.06F);
-        opaque();
-        BufferBuilder buffer = begin();
-        SpaceScene.jupiter.draw(buffer, view, new Vector3f(), 62.0F, spin, SUN, 0.035F);
-        ring(buffer, view, 1.0F, time, 0.0F);
-        rod(buffer, view, rodPos, tangent, 1.0F);
-        end(buffer);
-
-        additive();
-        buffer = begin();
-        Vector3f right = view.normalizedPositiveX(new Vector3f());
-        Vector3f camUp = view.normalizedPositiveY(new Vector3f());
-        // The expanding shock ring around the muzzle.
-        float ringRadius = 6.0F + 90.0F * ease(p);
-        for (int i = 0; i < 40; i++) {
-            float a = Mth.TWO_PI * i / 40;
-            Vector3f dot = new Vector3f(Mth.cos(a), Mth.sin(a), 0.0F).mul(ringRadius);
-            Vector3f side = new Vector3f(outward).mul(dot.x).add(new Vector3f(up).mul(dot.y)).add(station);
-            glow(buffer, view, right, camUp, side.x, side.y, side.z, 6.0F, 1.0F, 0.85F, 0.6F, 0.5F * (1.0F - p));
-        }
-        glow(buffer, view, right, camUp, station.x, station.y, station.z, 40.0F * (1.0F - p) + 6.0F, 1.0F, 0.9F, 0.7F, 0.9F);
-        for (int i = 0; i < 24; i++) {
-            float fade = 1.0F - i / 24.0F;
-            Vector3f at = new Vector3f(rodPos).sub(new Vector3f(tangent).mul(i * 9.0F));
-            glow(buffer, view, right, camUp, at.x, at.y, at.z, 4.0F + 6.0F * fade, 1.0F, 0.55F, 0.2F, 0.45F * fade);
-        }
-        end(buffer);
-    }
-
-    /** Chasing the rod: through the debris belt, then down onto the planet and into its atmosphere. */
-    private static void fall(float p, float time) {
-        float toEarth = Mth.clamp((p - 0.4F) / 0.6F, 0.0F, 1.0F);
-        float travel = ease(toEarth) * 520.0F;
-        Vector3f eye = new Vector3f(0.0F, 0.0F, -travel);
-        Vector3f center = new Vector3f(0.0F, -2.0F, -travel - 100.0F);
-        Matrix4f view = new Matrix4f().lookAt(eye, center, new Vector3f(0.0F, 1.0F, 0.0F));
-        backdrop(eye, center, SUN);
-
-        Matrix3f earthSpin = new Matrix3f().rotateX(0.4F).rotateY(time * 0.01F);
-        opaque();
-        BufferBuilder buffer = begin();
-        SpaceScene.earth.draw(buffer, view, SpaceScene.EARTH_CENTER, SpaceScene.EARTH_RADIUS, earthSpin, SUN, 0.03F);
-        // Debris thins out as the planet takes over the sky.
-        float debris = 1.0F - ease(Mth.clamp((p - 0.3F) / 0.3F, 0.0F, 1.0F));
-        if (debris > 0.01F) {
-            drawRocks(buffer, view, eye, time, debris);
-        }
-        // Seen slightly from the side so the needle reads as a needle and not as a stack of rings.
-        Vector3f dir = new Vector3f(0.42F, -0.1F, -1.0F).normalize();
-        Vector3f rodPos = new Vector3f(eye).add(-7.0F, -2.5F, -48.0F);
-        rod(buffer, view, rodPos, dir, 1.0F);
-        end(buffer);
-
-        additive();
-        buffer = begin();
-        Vector3f right = view.normalizedPositiveX(new Vector3f());
-        Vector3f up = view.normalizedPositiveY(new Vector3f());
-        SpaceScene.earth.drawRim(buffer, view, eye, SpaceScene.EARTH_CENTER, SpaceScene.EARTH_RADIUS * 1.03F, earthSpin, 0.35F, 0.6F, 1.0F, 1.6F);
-        // Engine glow behind the rod, and the flare of the atmosphere on its nose.
-        Vector3f tailAt = new Vector3f(rodPos).sub(new Vector3f(dir).mul(ROD_LENGTH * 0.5F + 2.0F));
-        glow(buffer, view, right, up, tailAt.x, tailAt.y, tailAt.z, 10.0F, 1.0F, 0.5F, 0.15F, 0.9F);
-        float heat = Mth.clamp((p - 0.55F) / 0.45F, 0.0F, 1.0F);
-        if (heat > 0.0F) {
-            float size = 8.0F + 90.0F * heat * heat;
-            Vector3f noseAt = new Vector3f(rodPos).add(new Vector3f(dir).mul(ROD_LENGTH * 0.5F));
-            glow(buffer, view, right, up, noseAt.x, noseAt.y, noseAt.z, size, 1.0F, 0.5F, 0.15F, 0.85F * heat);
-            glow(buffer, view, right, up, noseAt.x, noseAt.y, noseAt.z, size * 0.35F, 1.0F, 0.95F, 0.8F, heat);
-        }
-        end(buffer);
     }
 
     // ---------------------------------------------------------------- pieces
@@ -321,7 +231,7 @@ final class KineticShots {
 
     /** The loading gantry at the breech: a frame either side of the ring. */
     private static void station(BufferBuilder buffer, Matrix4f view, Vector3f at, Vector3f outward, Vector3f up) {
-        Vector3f tangent = tangent(0.0F);
+        Vector3f tangent = tangent(STATION);
         for (int side = -1; side <= 1; side += 2) {
             Vector3f arm = new Vector3f(at).add(new Vector3f(tangent).mul(side * 26.0F));
             Vector3f lo = new Vector3f(arm).sub(new Vector3f(up).mul(24.0F));
@@ -366,7 +276,7 @@ final class KineticShots {
     }
 
     /** The needle: dark segmented body with glowing orange bands and a pointed nose, flying along dir. */
-    private static void rod(BufferBuilder buffer, Matrix4f view, Vector3f center, Vector3f dir, float glowAmount) {
+    static void rod(BufferBuilder buffer, Matrix4f view, Vector3f center, Vector3f dir, float glowAmount) {
         Vector3f forward = new Vector3f(dir).normalize();
         Vector3f u = perpendicular(forward);
         Vector3f v = new Vector3f(forward).cross(u);
@@ -385,7 +295,7 @@ final class KineticShots {
                 float a1 = Mth.TWO_PI * (s + 1) / sides;
                 float light = Math.max(0.35F, shade(SUN, u.x * Mth.cos(a0) + v.x * Mth.sin(a0),
                         u.y * Mth.cos(a0) + v.y * Mth.sin(a0), u.z * Mth.cos(a0) + v.z * Mth.sin(a0), 0.0F));
-                float body = 0.09F * light;
+                float body = 0.2F * light;
                 // Vertex colours must stay within 0..1: the buffer packs them into bytes and wraps anything larger.
                 float red = Math.min(1.0F, body + ORANGE[0] * glowing);
                 float green = Math.min(1.0F, body + ORANGE[1] * glowing);
@@ -438,14 +348,17 @@ final class KineticShots {
         }
     }
 
-    private static void drawRocks(BufferBuilder buffer, Matrix4f view, Vector3f eye, float time, float amount) {
+    /** Debris around the flight path, streaming towards the camera along the direction of travel. */
+    static void drawRocks(BufferBuilder buffer, Matrix4f view, Vector3f eye, Vector3f side, Vector3f up, Vector3f forward,
+                          float time, float amount, Vector3f sun) {
+        buildRocks();
         Vector3f center = new Vector3f();
         for (int i = 0; i < ROCK_COUNT; i++) {
             int o = i * 5;
-            float z = -900.0F + (rocks[o + 2] + time * 420.0F) % 900.0F;
-            center.set(eye.x + rocks[o], eye.y + rocks[o + 1], eye.z + z);
+            float ahead = 900.0F - (rocks[o + 2] + time * 420.0F) % 900.0F;
+            center.set(eye).fma(rocks[o], side).fma(rocks[o + 1], up).fma(ahead, forward);
             Matrix3f spin = new Matrix3f().rotateXYZ(rocks[o + 4] + time * 0.7F, rocks[o + 4] * 2.0F, time * 0.4F);
-            rock.draw(buffer, view, center, rocks[o + 3] * amount, spin, SUN, 0.05F);
+            rock.draw(buffer, view, center, rocks[o + 3] * amount, spin, sun, 0.05F);
         }
     }
 }

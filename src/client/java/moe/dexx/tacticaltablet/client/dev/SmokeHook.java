@@ -25,7 +25,7 @@ import net.minecraft.world.level.levelgen.presets.WorldPresets;
  */
 public final class SmokeHook {
     /** Cinematic seconds at which a screenshot is taken. */
-    private static final double[] SHOTS = {1.5, 4.8, 5.8, 7.0, 8.8, 11.0, 13.0, 15.0, 17.0, 18.8, 19.9, 20.5, 21.0, 22.0, 23.0, 23.8, 24.5, 26.0, 28.0, 29.5};
+    private static final double[] SHOTS = {3.8, 5.2, 5.9, 6.3, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0, 13.0, 14.3, 16.0, 18.0, 19.8, 20.5, 21.2, 22.2, 23.2, 23.9, 24.6, 26.5};
 
     private static boolean worldRequested;
     private static int ticksInWorld;

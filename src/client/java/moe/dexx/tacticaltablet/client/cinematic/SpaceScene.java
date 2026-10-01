@@ -29,28 +29,19 @@ import org.lwjgl.opengl.GL11;
  */
 public final class SpaceScene {
     private static final float FOV = (float) Math.toRadians(58.0);
-    private static final float NEAR = 0.5F;
-    private static final float FAR = 5000.0F;
+    private static final float NEAR = 1.0F;
+    private static final float FAR = 40000.0F;
     private static final int STAR_COUNT = 1600;
-    private static final int SPARK_COUNT = 48;
+    static final int SPARK_COUNT = 48;
 
-    private static final float MUZZLE_Z = -72.0F;
-    static final Vector3f EARTH_CENTER = new Vector3f(0.0F, -60.0F, -900.0F);
-    static final float EARTH_RADIUS = 330.0F;
-    /** Where the cannon's line of fire meets the planet. */
-    private static final float EARTH_SURFACE_Z = -575.5F;
-    /** Saturn as seen from the cannon's station beyond it, off to one side of the line of fire. */
-    private static final Vector3f CANNON_SATURN_CENTER = new Vector3f(-420.0F, -30.0F, -380.0F);
-    private static final float CANNON_SATURN_RADIUS = 120.0F;
-    /** How far down the barrel's axis the home planet is drawn while the camera is at the cannon. */
-    private static final float HOME_DOT_Z = -4400.0F;
+            private static final Vector3f CANNON_SATURN_CENTER = new Vector3f(-420.0F, -30.0F, -380.0F);
 
     static SphereMesh jupiter;
     static SphereMesh saturn;
     static SphereMesh earth;
     static SphereMesh moon;
     private static float[] stars;
-    private static float[] sparks;
+    static float[] sparks;
 
     private SpaceScene() {
     }
@@ -77,17 +68,7 @@ public final class SpaceScene {
         try {
             float p = (float) progress;
             float time = (float) seconds;
-            switch (type) {
-                case KINETIC -> KineticShots.render(segment, p, time);
-                case METEOR -> MeteorShots.render(segment, p, time);
-                default -> {
-                    switch (segment) {
-                        case JUPITER -> jupiterShot(p, time);
-                        case SATURN -> saturnShot(p, time);
-                        default -> orbitShot(segment, p, time);
-                    }
-                }
-            }
+            Voyage.render(type, segment, p, time);
         } finally {
             RenderSystem.disableBlend();
             RenderSystem.defaultBlendFunc();
@@ -100,142 +81,6 @@ public final class SpaceScene {
             modelView.popPose();
             RenderSystem.applyModelViewMatrix();
         }
-    }
-
-    // ---------------------------------------------------------------- shots
-
-    private static void jupiterShot(float p, float time) {
-        Vector3f sun = new Vector3f(-0.55F, 0.25F, 0.8F).normalize();
-        Vector3f eye = mix(new Vector3f(-190.0F, 28.0F, 170.0F), new Vector3f(140.0F, -12.0F, 120.0F), p);
-        Vector3f center = mix(new Vector3f(), new Vector3f(90.0F, 0.0F, -70.0F), p * 0.75F);
-        Matrix4f view = new Matrix4f().lookAt(eye, center, new Vector3f(0.0F, 1.0F, 0.0F));
-        backdrop(eye, center, sun);
-
-        Matrix3f spin = new Matrix3f().rotateZ(0.05F).rotateY(time * 0.06F);
-        Matrix3f still = new Matrix3f();
-        Vector3f origin = new Vector3f();
-        opaque();
-        BufferBuilder buffer = begin();
-        jupiter.draw(buffer, view, origin, 62.0F, spin, sun, 0.035F);
-        moon.draw(buffer, view, new Vector3f(100.0F, 6.0F, 46.0F), 4.5F, still, sun, 0.03F);
-        moon.draw(buffer, view, new Vector3f(-62.0F, -9.0F, 128.0F), 3.0F, still, sun, 0.03F);
-        end(buffer);
-
-        additive();
-        buffer = begin();
-        jupiter.drawRim(buffer, view, eye, origin, 63.5F, spin, 0.95F, 0.72F, 0.5F, 0.45F);
-        end(buffer);
-    }
-
-    private static void saturnShot(float p, float time) {
-        Vector3f sun = new Vector3f(0.6F, 0.35F, 0.72F).normalize();
-        Vector3f eye = mix(new Vector3f(-200.0F, 46.0F, 150.0F), new Vector3f(150.0F, 18.0F, 165.0F), p);
-        Vector3f center = mix(new Vector3f(), new Vector3f(60.0F, -4.0F, -40.0F), p * 0.7F);
-        Matrix4f view = new Matrix4f().lookAt(eye, center, new Vector3f(0.0F, 1.0F, 0.0F));
-        backdrop(eye, center, sun);
-
-        Matrix3f tilt = new Matrix3f().rotateZ(0.42F).rotateX(0.18F);
-        Matrix3f spin = new Matrix3f(tilt).rotateY(time * 0.05F);
-        Vector3f origin = new Vector3f();
-        opaque();
-        BufferBuilder buffer = begin();
-        saturn.draw(buffer, view, origin, 48.0F, spin, sun, 0.035F);
-        moon.draw(buffer, view, new Vector3f(128.0F, 14.0F, -70.0F), 5.0F, new Matrix3f(), sun, 0.03F);
-        end(buffer);
-
-        translucent();
-        buffer = begin();
-        rings(buffer, view, origin, tilt, sun, 48.0F, 60.0F, 112.0F);
-        end(buffer);
-
-        additive();
-        buffer = begin();
-        saturn.drawRim(buffer, view, eye, origin, 49.0F, spin, 0.95F, 0.85F, 0.6F, 0.4F);
-        end(buffer);
-    }
-
-    /** The cannon charging and firing beyond Saturn, then the dive along the beam to the home planet. */
-    private static void orbitShot(Segment segment, float p, float time) {
-        Vector3f sun = new Vector3f(0.55F, 0.35F, 0.76F).normalize();
-        Vector3f eye;
-        Vector3f center;
-        float charge;
-        boolean firing = segment != Segment.CANNON;
-        if (segment == Segment.CANNON) {
-            float eased = ease(p);
-            float angle = Mth.lerp(eased, 0.61F, 1.5F);
-            float range = Mth.lerp(eased, 150.0F, 92.0F);
-            eye = new Vector3f(Mth.sin(angle) * range, Mth.lerp(eased, 42.0F, 14.0F), Mth.cos(angle) * range - 10.0F);
-            center = new Vector3f(0.0F, 0.0F, -14.0F);
-            charge = p;
-        } else if (segment == Segment.FIRE) {
-            // The recoil shakes the camera and settles.
-            float shake = 1.6F * (1.0F - p);
-            eye = new Vector3f(46.0F + shake * Mth.sin(time * 61.0F), 16.0F + shake * Mth.cos(time * 47.0F), -18.0F);
-            center = new Vector3f(0.0F, -4.0F, -130.0F);
-            charge = 1.0F;
-        } else {
-            eye = new Vector3f(7.0F, 5.0F, Mth.lerp(p * p, -110.0F, -545.0F));
-            center = new Vector3f(0.0F, -20.0F, -900.0F);
-            charge = 1.0F;
-        }
-        Matrix4f view = new Matrix4f().lookAt(eye, center, new Vector3f(0.0F, 1.0F, 0.0F));
-        Vector3f right = view.normalizedPositiveX(new Vector3f());
-        Vector3f up = view.normalizedPositiveY(new Vector3f());
-        backdrop(eye, center, sun);
-
-        // The cannon is stationed beyond Saturn; only the dive at the end happens above the home planet.
-        boolean atCannon = segment != Segment.DESCENT;
-        Matrix3f earthSpin = new Matrix3f().rotateX(0.4F).rotateY(time * 0.01F);
-        Matrix3f saturnTilt = new Matrix3f().rotateZ(-0.38F).rotateX(0.3F);
-        Matrix3f saturnSpin = new Matrix3f(saturnTilt).rotateY(time * 0.05F);
-        opaque();
-        BufferBuilder buffer = begin();
-        if (atCannon) {
-            saturn.draw(buffer, view, CANNON_SATURN_CENTER, CANNON_SATURN_RADIUS, saturnSpin, sun, 0.035F);
-            cannon(buffer, view, sun, charge, time);
-        } else {
-            earth.draw(buffer, view, EARTH_CENTER, EARTH_RADIUS, earthSpin, sun, 0.03F);
-        }
-        end(buffer);
-
-        if (atCannon) {
-            translucent();
-            buffer = begin();
-            rings(buffer, view, CANNON_SATURN_CENTER, saturnTilt, sun, CANNON_SATURN_RADIUS,
-                    CANNON_SATURN_RADIUS * 1.25F, CANNON_SATURN_RADIUS * 2.33F);
-            end(buffer);
-        }
-
-        additive();
-        buffer = begin();
-        if (atCannon) {
-            saturn.drawRim(buffer, view, eye, CANNON_SATURN_CENTER, CANNON_SATURN_RADIUS * 1.02F, saturnSpin, 0.95F, 0.85F, 0.6F, 0.4F);
-            // The home planet, a pale dot straight down the barrel.
-            glow(buffer, view, right, up, 0.0F, 0.0F, HOME_DOT_Z, 26.0F, 0.35F, 0.6F, 1.0F, 0.8F);
-            glow(buffer, view, right, up, 0.0F, 0.0F, HOME_DOT_Z, 8.0F, 0.9F, 0.95F, 1.0F, 1.0F);
-            chargeGlow(buffer, view, right, up, charge, time);
-        } else {
-            earth.drawRim(buffer, view, eye, EARTH_CENTER, EARTH_RADIUS * 1.025F, earthSpin, 0.35F, 0.6F, 1.0F, 1.6F);
-        }
-        if (firing) {
-            float pulse = 0.78F + 0.22F * Mth.sin(time * 40.0F);
-            Vector3f from = new Vector3f(0.0F, 0.0F, MUZZLE_Z);
-            Vector3f to = new Vector3f(0.0F, 0.0F, atCannon ? HOME_DOT_Z : EARTH_SURFACE_Z);
-            beam(buffer, view, eye, from, to, 16.0F, 0.3F, 0.6F, 1.0F, 0.28F * pulse);
-            beam(buffer, view, eye, from, to, 7.0F, 0.45F, 0.85F, 1.0F, 0.65F * pulse);
-            beam(buffer, view, eye, from, to, 2.4F, 1.0F, 1.0F, 1.0F, 1.0F);
-            if (atCannon) {
-                glow(buffer, view, right, up, 0.0F, 0.0F, MUZZLE_Z - 2.0F, 14.0F + 46.0F * (1.0F - p), 0.6F, 0.9F, 1.0F, 0.9F);
-            } else {
-                float burn = 22.0F + 70.0F * p;
-                // Lifted clear of the curve of the planet, which would otherwise cut a bite out of the flat glow.
-                float burnZ = EARTH_SURFACE_Z + 8.0F;
-                glow(buffer, view, right, up, 0.0F, 0.0F, burnZ, burn, 1.0F, 0.75F, 0.45F, 0.9F);
-                glow(buffer, view, right, up, 0.0F, 0.0F, burnZ, burn * 0.4F, 1.0F, 1.0F, 1.0F, 1.0F);
-            }
-        }
-        end(buffer);
     }
 
     // ---------------------------------------------------------------- scene pieces
@@ -342,61 +187,6 @@ public final class SpaceScene {
         out[1] = Mth.lerp(tone, 0.74F, 0.56F) * fine;
         out[2] = Mth.lerp(tone, 0.58F, 0.43F) * fine;
         out[3] = Math.max(0.0F, alpha * fine);
-    }
-
-    /** The cannon lies along the Z axis with its muzzle towards negative Z, where the planet is. */
-    private static void cannon(BufferBuilder buffer, Matrix4f view, Vector3f sun, float charge, float time) {
-        // Reactor block at the rear.
-        tube(buffer, view, sun, 34.0F, 11.0F, 58.0F, 11.0F, 24, 0.30F, 0.32F, 0.37F, 0.0F, 1.0F);
-        tube(buffer, view, sun, 58.0F, 11.0F, 70.0F, 4.0F, 24, 0.24F, 0.26F, 0.30F, 0.0F, 1.0F);
-        disc(buffer, view, sun, 70.0F, 0.0F, 4.0F, 24, 1.0F, 0.2F, 0.22F, 0.25F, 0.0F);
-        disc(buffer, view, sun, 34.0F, 5.0F, 11.0F, 24, -1.0F, 0.26F, 0.28F, 0.32F, 0.0F);
-        // Barrel and muzzle.
-        tube(buffer, view, sun, -62.0F, 5.0F, 34.0F, 5.0F, 24, 0.56F, 0.58F, 0.63F, 0.0F, 1.0F);
-        tube(buffer, view, sun, MUZZLE_Z, 8.0F, -62.0F, 5.5F, 24, 0.42F, 0.44F, 0.5F, 0.0F, 1.0F);
-        disc(buffer, view, sun, MUZZLE_Z, 3.5F, 8.0F, 24, -1.0F, 0.2F, 0.21F, 0.24F, 0.0F);
-        disc(buffer, view, sun, MUZZLE_Z + 0.4F, 0.0F, 3.5F, 24, -1.0F,
-                0.1F + 0.5F * charge, 0.15F + 0.75F * charge, 0.2F + 0.8F * charge, 1.0F);
-        // Clamp rings, each with a coil that lights up as the charge travels down the barrel.
-        for (int i = 0; i < 4; i++) {
-            float z = 16.0F - i * 22.0F;
-            tube(buffer, view, sun, z - 1.6F, 7.6F, z + 1.6F, 7.6F, 24, 0.36F, 0.38F, 0.43F, 0.0F, 1.0F);
-            disc(buffer, view, sun, z - 1.6F, 5.0F, 7.6F, 24, -1.0F, 0.3F, 0.32F, 0.36F, 0.0F);
-            disc(buffer, view, sun, z + 1.6F, 5.0F, 7.6F, 24, 1.0F, 0.3F, 0.32F, 0.36F, 0.0F);
-            float wave = 0.5F + 0.5F * Mth.sin(time * (3.0F + 9.0F * charge) - i * 1.3F);
-            float lit = charge * (0.35F + 0.65F * wave);
-            tube(buffer, view, sun, z - 0.5F, 7.8F, z + 0.5F, 7.8F, 24, 0.08F + 0.4F * lit, 0.12F + 0.8F * lit, 0.16F + 0.84F * lit, 1.0F, 1.0F);
-        }
-        // Four rails along the barrel.
-        box(buffer, view, sun, -0.9F, 6.2F, -58.0F, 0.9F, 7.8F, 30.0F, 0.34F, 0.36F, 0.4F);
-        box(buffer, view, sun, -0.9F, -7.8F, -58.0F, 0.9F, -6.2F, 30.0F, 0.34F, 0.36F, 0.4F);
-        box(buffer, view, sun, 6.2F, -0.9F, -58.0F, 7.8F, 0.9F, 30.0F, 0.34F, 0.36F, 0.4F);
-        box(buffer, view, sun, -7.8F, -0.9F, -58.0F, -6.2F, 0.9F, 30.0F, 0.34F, 0.36F, 0.4F);
-        // Solar panels on booms either side of the reactor.
-        for (int side = -1; side <= 1; side += 2) {
-            float x0 = side > 0 ? 11.0F : -15.0F;
-            box(buffer, view, sun, x0, -1.0F, 44.0F, x0 + 4.0F, 1.0F, 48.0F, 0.4F, 0.4F, 0.44F);
-            float p0 = side > 0 ? 15.0F : -74.0F;
-            box(buffer, view, sun, p0, -0.3F, 36.0F, p0 + 59.0F, 0.3F, 56.0F, 0.06F, 0.12F, 0.38F);
-        }
-    }
-
-    /** Light gathering at the muzzle while the cannon charges. */
-    private static void chargeGlow(BufferBuilder buffer, Matrix4f view, Vector3f right, Vector3f up, float charge, float time) {
-        if (charge <= 0.0F) {
-            return;
-        }
-        float flicker = 0.85F + 0.15F * Mth.sin(time * 53.0F);
-        float z = MUZZLE_Z - 2.0F;
-        glow(buffer, view, right, up, 0.0F, 0.0F, z, (4.0F + 26.0F * charge * charge) * flicker, 0.35F, 0.75F, 1.0F, 0.75F * charge);
-        glow(buffer, view, right, up, 0.0F, 0.0F, z, (1.5F + 8.0F * charge) * flicker, 1.0F, 1.0F, 1.0F, charge);
-        for (int i = 0; i < SPARK_COUNT; i++) {
-            int o = i * 3;
-            float phase = (time * 0.9F + i * 0.618F) % 1.0F;
-            float distance = (1.0F - phase) * (16.0F + 30.0F * charge);
-            glow(buffer, view, right, up, sparks[o] * distance, sparks[o + 1] * distance, z + sparks[o + 2] * distance,
-                    0.5F + 0.9F * charge, 0.5F, 0.85F, 1.0F, phase * charge);
-        }
     }
 
     // ---------------------------------------------------------------- primitives

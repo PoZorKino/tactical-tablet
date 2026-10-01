@@ -175,9 +175,11 @@ public final class Cinematic {
                 yield new View(position, blend(look, target.subtract(position), eased));
             }
             case ASCENT -> {
-                Vec3 position = pulledBack.add(0.0, 600.0 * progress * progress, 0.0);
-                Vec3 skyward = new Vec3(flat.x * 0.15, 1.0, flat.z * 0.15);
-                yield new View(position, blend(target.subtract(pulledBack), skyward, ease(progress)));
+                // Straight up, looking back down at the target as the ground falls away.
+                double rise = progress * progress;
+                Vec3 position = pulledBack.add(0.0, 2600.0 * rise, 0.0);
+                Vec3 down = target.subtract(position);
+                yield new View(position, blend(target.subtract(pulledBack), down, ease(Math.min(1.0, progress * 2.0))));
             }
             case IMPACT -> impactView(minecraft, state, eye, flat, distance, target, progress);
             case RETURN -> {
@@ -224,20 +226,18 @@ public final class Cinematic {
         double orange = 0.0;
         double progress = CinematicTimeline.progress(seconds, salvos);
         boolean burning = type == StrikeType.KINETIC || type == StrikeType.METEOR;
+        double sky = 0.0;
         switch (CinematicTimeline.segment(seconds, salvos)) {
-            case ASCENT -> black = (progress - 0.6) / 0.4;
-            case JUPITER -> black = Math.max(1.0 - (seconds - CinematicTimeline.ASCENT_END) / 0.5,
-                    1.0 - (CinematicTimeline.JUPITER_END - seconds) / 0.3);
-            case SATURN -> black = Math.max(1.0 - (seconds - CinematicTimeline.JUPITER_END) / 0.3,
-                    1.0 - (CinematicTimeline.SATURN_END - seconds) / 0.3);
-            case CANNON -> black = 1.0 - (seconds - CinematicTimeline.SATURN_END) / 0.3;
+            // Leaving the atmosphere is a soft flash of sky blue; after that the flight never cuts to black.
+            case ASCENT -> sky = (progress - 0.8) / 0.2;
+            case JUPITER -> sky = 1.0 - (seconds - CinematicTimeline.ASCENT_END) / 0.6;
             // The cut from the weapon to the home planet is hidden in a flash.
             case FIRE -> white = Math.max(0.9 * (1.0 - (seconds - CinematicTimeline.CANNON_END) / 0.45),
                     1.0 - (CinematicTimeline.FIRE_END - seconds) / 0.25);
             case DESCENT -> {
                 white = 1.0 - (seconds - CinematicTimeline.FIRE_END) / 0.35;
                 if (burning) {
-                    orange = (progress - 0.72) / 0.28;
+                    orange = (progress - 0.86) / 0.14;
                 } else {
                     white = Math.max(white, 1.0 - (CinematicTimeline.DESCENT_END - seconds) / 0.6);
                 }
@@ -245,6 +245,9 @@ public final class Cinematic {
             case IMPACT -> white = 1.0 - (seconds - CinematicTimeline.DESCENT_END) / 0.7;
             default -> {
             }
+        }
+        if (sky > 0.0 && white <= 0.0) {
+            return (int) (Mth.clamp(sky, 0.0, 1.0) * 255.0) << 24 | 0xCFE6FF;
         }
         if (white > 0.0) {
             return (int) (Mth.clamp(white, 0.0, 1.0) * 255.0) << 24 | 0xFFFFFF;

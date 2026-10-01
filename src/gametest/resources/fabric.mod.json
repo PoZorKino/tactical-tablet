@@ -6,7 +6,8 @@
   "environment": "*",
   "entrypoints": {
     "fabric-gametest": [
-      "moe.dexx.tacticaltablet.gametest.ItemGameTests"
+      "moe.dexx.tacticaltablet.gametest.ItemGameTests",
+      "moe.dexx.tacticaltablet.gametest.DestructionGameTests"
     ]
   },
   "depends": {

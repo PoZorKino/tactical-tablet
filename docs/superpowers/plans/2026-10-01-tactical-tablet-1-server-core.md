@@ -6,7 +6,7 @@
 
 **Architecture:** Чистая логика (параметры, фазы, профиль кратера, порядок чанков, бюджет тика) не зависит от классов Minecraft и покрыта JUnit. Поверх неё — `DestructionJob` (обработка чанков волной с бюджетом времени и тикетами) и `StrikeManager` (автомат фаз, отмена, лимиты), которые проверяются серверными игровыми тестами. Сеть и команды — тонкие обёртки над менеджером.
 
-**Tech Stack:** Minecraft 1.20.1, Fabric Loader 0.19.5, Fabric API 0.92.12+1.20.1, Fabric Loom 1.18.2 (плагин `net.fabricmc.fabric-loom-remap`), Gradle 9.7.1, Java 17 (сборка на JDK 21 с `release = 17`), официальные маппинги Mojang, JUnit 5.11.4, Fabric GameTest.
+**Tech Stack:** Minecraft 1.20.1, Fabric Loader 0.19.5, Fabric API 0.92.12+1.20.1, Fabric Loom 1.17.21 (плагин `net.fabricmc.fabric-loom-remap`), Gradle 9.7.1, Java 17 (сборка на JDK 21 с `release = 17`), официальные маппинги Mojang, JUnit 5.11.4, Fabric GameTest.
 
 **Spec:** `docs/superpowers/specs/2026-10-01-tactical-tablet-design.md`
 
@@ -26,7 +26,7 @@
 
 - Каталог проекта: `C:\Users\pozo\Projects\tactical-tablet`. Ветка для работы: `feature/server-core` (создаётся в задаче 1).
 - Идентификатор мода: `tactical_tablet`. Корневой пакет: `moe.dexx.tacticaltablet`. Лицензия: MIT.
-- Версии фиксированы в `gradle.properties`: Minecraft `1.20.1`, Loader `0.19.5`, Loom `1.18.2`, Fabric API `0.92.12+1.20.1`, Gradle wrapper `9.7.1`.
+- Версии фиксированы в `gradle.properties`: Minecraft `1.20.1`, Loader `0.19.5`, Loom `1.17.21` (1.18 требует Java 25 для Gradle), Fabric API `0.92.12+1.20.1`, Gradle wrapper `9.7.1`.
 - Код компилируется с `options.release = 17`. Маппинги — `loom.officialMojangMappings()`.
 - `loom.splitEnvironmentSourceSets()`: код в `src/main` не ссылается на клиентские классы (`net.minecraft.client.*`).
 - Радиус удара: 1…1000 и не больше серверного `maxRadius`. Значение вне диапазона отклоняется с причиной, а не обрезается.
@@ -133,7 +133,7 @@ org.gradle.parallel=true
 
 minecraft_version=1.20.1
 loader_version=0.19.5
-loom_version=1.18.2
+loom_version=1.17.21
 fabric_api_version=0.92.12+1.20.1
 junit_version=5.11.4
 

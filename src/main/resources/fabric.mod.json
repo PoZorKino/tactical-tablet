@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "id": "tactical_tablet",
+  "version": "${version}",
+  "name": "Tactical Tablet",
+  "description": "A tablet that calls an orbital laser strike with a cinematic launch sequence.",
+  "authors": ["pozo"],
+  "license": "MIT",
+  "environment": "*",
+  "entrypoints": {
+    "main": ["moe.dexx.tacticaltablet.TacticalTablet"],
+    "client": ["moe.dexx.tacticaltablet.client.TacticalTabletClient"]
+  },
+  "depends": {
+    "fabricloader": ">=0.15.0",
+    "minecraft": "1.20.1",
+    "java": ">=17",
+    "fabric-api": "*"
+  }
+}

@@ -1,0 +1,40 @@
+{
+  "tablet_open": {
+    "subtitle": "tactical_tablet.subtitle.tablet_open",
+    "sounds": [{"name": "minecraft:block.beacon.activate", "type": "event", "pitch": 1.6, "volume": 0.6}]
+  },
+  "button_click": {
+    "sounds": [{"name": "minecraft:ui.button.click", "type": "event", "pitch": 1.4, "volume": 0.5}]
+  },
+  "countdown_beep": {
+    "subtitle": "tactical_tablet.subtitle.countdown_beep",
+    "sounds": [{"name": "minecraft:block.note_block.pling", "type": "event", "pitch": 1.0, "volume": 0.7}]
+  },
+  "cannon_charge": {
+    "subtitle": "tactical_tablet.subtitle.cannon_charge",
+    "sounds": [{"name": "minecraft:entity.warden.sonic_charge", "type": "event", "pitch": 0.6}]
+  },
+  "cannon_fire": {
+    "subtitle": "tactical_tablet.subtitle.cannon_fire",
+    "sounds": [{"name": "minecraft:entity.warden.sonic_boom", "type": "event", "pitch": 0.5}]
+  },
+  "laser_flyby": {
+    "subtitle": "tactical_tablet.subtitle.laser_flyby",
+    "sounds": [{"name": "minecraft:entity.guardian.attack", "type": "event", "pitch": 0.8}]
+  },
+  "explosion": {
+    "subtitle": "tactical_tablet.subtitle.explosion",
+    "sounds": [
+      {"name": "minecraft:entity.generic.explode", "type": "event", "pitch": 0.5},
+      {"name": "minecraft:entity.lightning_bolt.thunder", "type": "event", "pitch": 0.6}
+    ]
+  },
+  "destruction": {
+    "subtitle": "tactical_tablet.subtitle.destruction",
+    "sounds": [{"name": "minecraft:block.deepslate.break", "type": "event", "pitch": 0.5}]
+  },
+  "strike_complete": {
+    "subtitle": "tactical_tablet.subtitle.strike_complete",
+    "sounds": [{"name": "minecraft:block.beacon.deactivate", "type": "event", "pitch": 1.2, "volume": 0.8}]
+  }
+}

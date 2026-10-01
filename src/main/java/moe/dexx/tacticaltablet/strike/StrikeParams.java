@@ -85,4 +85,29 @@ public record StrikeParams(
         return new StrikeParams(hasTarget, targetX, targetY, targetZ, radius, power, salvos, countdownSeconds,
                 newType, destroyBlocks, destroyLiquids, damageEntities);
     }
+
+    public StrikeParams withSalvos(int newSalvos) {
+        return new StrikeParams(hasTarget, targetX, targetY, targetZ, radius, power, newSalvos, countdownSeconds,
+                type, destroyBlocks, destroyLiquids, damageEntities);
+    }
+
+    public StrikeParams withCountdown(int newCountdownSeconds) {
+        return new StrikeParams(hasTarget, targetX, targetY, targetZ, radius, power, salvos, newCountdownSeconds,
+                type, destroyBlocks, destroyLiquids, damageEntities);
+    }
+
+    public StrikeParams withDestroyBlocks(boolean value) {
+        return new StrikeParams(hasTarget, targetX, targetY, targetZ, radius, power, salvos, countdownSeconds,
+                type, value, destroyLiquids, damageEntities);
+    }
+
+    public StrikeParams withDestroyLiquids(boolean value) {
+        return new StrikeParams(hasTarget, targetX, targetY, targetZ, radius, power, salvos, countdownSeconds,
+                type, destroyBlocks, value, damageEntities);
+    }
+
+    public StrikeParams withDamageEntities(boolean value) {
+        return new StrikeParams(hasTarget, targetX, targetY, targetZ, radius, power, salvos, countdownSeconds,
+                type, destroyBlocks, destroyLiquids, value);
+    }
 }

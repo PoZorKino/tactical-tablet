@@ -104,4 +104,19 @@ class StrikeParamsTest {
         assertEquals(valid().targetX(), changed.targetX());
         assertEquals(valid().salvos(), changed.salvos());
     }
+
+    @Test
+    void settingWithersChangeOnlyTheirField() {
+        StrikeParams changed = valid().withSalvos(7).withCountdown(42)
+                .withDestroyBlocks(false).withDestroyLiquids(false).withDamageEntities(false);
+        assertEquals(7, changed.salvos());
+        assertEquals(42, changed.countdownSeconds());
+        assertFalse(changed.destroyBlocks());
+        assertFalse(changed.destroyLiquids());
+        assertFalse(changed.damageEntities());
+        assertEquals(valid().radius(), changed.radius());
+        assertEquals(valid().power(), changed.power());
+        assertEquals(valid().targetZ(), changed.targetZ());
+        assertEquals(valid().type(), changed.type());
+    }
 }

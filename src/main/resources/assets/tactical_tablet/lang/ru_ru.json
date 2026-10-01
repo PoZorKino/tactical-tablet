@@ -22,5 +22,10 @@
   "tactical_tablet.abort.gamemode": "Запуск отменён: режим игры больше не позволяет удар",
   "tactical_tablet.abort.server_stopping": "Запуск отменён: сервер останавливается",
   "tactical_tablet.abort.resources": "Запуск отменён: не удалось загрузить ресурсы кат-сцены",
-  "tactical_tablet.abort.stopped_by_operator": "Запуск отменён оператором сервера"
+  "tactical_tablet.abort.stopped_by_operator": "Запуск отменён оператором сервера",
+  "tactical_tablet.command.status.server": "Среднее время тика сервера: %s мс",
+  "tactical_tablet.command.status.none": "Активных ударов нет",
+  "tactical_tablet.command.status.line": "Удар игрока %s: %s по %s %s %s, радиус %s, чанков %s/%s",
+  "tactical_tablet.command.stop.done": "Остановлено ударов: %s",
+  "tactical_tablet.command.strike.started": "Немедленный удар по %s %s %s, радиус %s, сила %s"
 }

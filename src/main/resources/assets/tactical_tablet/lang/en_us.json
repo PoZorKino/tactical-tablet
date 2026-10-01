@@ -22,5 +22,10 @@
   "tactical_tablet.abort.gamemode": "Launch aborted: the game mode no longer allows the strike",
   "tactical_tablet.abort.server_stopping": "Launch aborted: the server is stopping",
   "tactical_tablet.abort.resources": "Launch aborted: the cinematic resources failed to load",
-  "tactical_tablet.abort.stopped_by_operator": "Launch aborted by a server operator"
+  "tactical_tablet.abort.stopped_by_operator": "Launch aborted by a server operator",
+  "tactical_tablet.command.status.server": "Average server tick: %s ms",
+  "tactical_tablet.command.status.none": "No active strikes",
+  "tactical_tablet.command.status.line": "Strike by %s: %s at %s %s %s, radius %s, chunks %s/%s",
+  "tactical_tablet.command.stop.done": "Stopped strikes: %s",
+  "tactical_tablet.command.strike.started": "Immediate strike at %s %s %s, radius %s, power %s"
 }

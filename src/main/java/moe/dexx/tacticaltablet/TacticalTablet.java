@@ -1,5 +1,6 @@
 package moe.dexx.tacticaltablet;
 
+import moe.dexx.tacticaltablet.command.TabletCommands;
 import moe.dexx.tacticaltablet.config.ServerConfig;
 import moe.dexx.tacticaltablet.destruction.TickTimeTracker;
 import moe.dexx.tacticaltablet.item.ModItems;
@@ -44,6 +45,7 @@ public final class TacticalTablet implements ModInitializer {
     public void onInitialize() {
         ModItems.register();
         ServerNetworking.register();
+        TabletCommands.register();
 
         ServerLifecycleEvents.SERVER_STARTING.register(server -> {
             config = ServerConfig.load(FabricLoader.getInstance().getConfigDir().resolve("tactical_tablet-server.json"));

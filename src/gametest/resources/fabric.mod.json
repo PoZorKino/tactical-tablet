@@ -9,7 +9,8 @@
       "moe.dexx.tacticaltablet.gametest.ItemGameTests",
       "moe.dexx.tacticaltablet.gametest.DestructionGameTests",
       "moe.dexx.tacticaltablet.gametest.StrikeGameTests",
-      "moe.dexx.tacticaltablet.gametest.NetworkGameTests"
+      "moe.dexx.tacticaltablet.gametest.NetworkGameTests",
+      "moe.dexx.tacticaltablet.gametest.CommandGameTests"
     ]
   },
   "depends": {

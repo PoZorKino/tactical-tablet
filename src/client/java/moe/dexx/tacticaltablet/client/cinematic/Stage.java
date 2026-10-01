@@ -7,14 +7,17 @@ import static moe.dexx.tacticaltablet.client.cinematic.SpaceScene.opaque;
 import static moe.dexx.tacticaltablet.client.cinematic.SpaceScene.translucent;
 
 import com.mojang.blaze3d.vertex.BufferBuilder;
+import moe.dexx.tacticaltablet.strike.CinematicTimeline.Segment;
+import moe.dexx.tacticaltablet.strike.StrikeType;
 import net.minecraft.util.Mth;
 import org.joml.Matrix3f;
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
 
 /**
- * One shared piece of space for the whole flight: Earth, Jupiter, Saturn and, near Saturn, the weapon. The camera
- * moves through it continuously, so every shot is a view of the same place and nothing is cut.
+ * One shared piece of space for the whole flight: Earth, Jupiter, Saturn and the weapon. The camera moves through
+ * it continuously, so every shot is a view of the same place and nothing is cut. The laser and the magnet stand
+ * beside Saturn; the kinetic accelerator is a ring around Jupiter.
  */
 final class Stage {
     static final Vector3f SUN = new Vector3f(-0.45F, 0.35F, 0.82F).normalize();
@@ -27,42 +30,69 @@ final class Stage {
     static final float SATURN_RADIUS = 600.0F;
     static final Matrix3f SATURN_TILT = new Matrix3f().rotateZ(0.42F).rotateX(0.18F);
 
-    /** Where the weapon hangs, in front of Saturn's rings and facing Earth. */
-    static final Vector3f DEVICE = new Vector3f(900.0F, -50.0F, -7500.0F);
-    static final Vector3f FIRE_DIR = new Vector3f(EARTH).sub(DEVICE).normalize();
-    static final Matrix3f DEVICE_ROT;
-    static final Matrix3f DEVICE_ROT_INV;
-    static final Matrix4f DEVICE_MODEL;
-    static final Matrix4f DEVICE_MODEL_INV;
-    static final Vector3f SUN_LOCAL;
+    /** The weapon's own coordinate system: -Z is the line of fire towards Earth, one local unit is scale world units. */
+    static final class Frame {
+        final Vector3f origin;
+        final float scale;
+        final Vector3f fireDir;
+        final Matrix3f rotInv;
+        final Matrix4f model;
+        final Matrix4f modelInv;
+        final Vector3f sunLocal;
 
-    /** Camera knots, one every two seconds from the end of the ascent (6 s) to the arrival at the weapon (14 s). */
-    private static final Vector3f[] EYE = {
+        Frame(Vector3f origin, float scale) {
+            this.origin = origin;
+            this.scale = scale;
+            this.fireDir = new Vector3f(EARTH).sub(origin).normalize();
+            Vector3f z = new Vector3f(fireDir).negate();
+            Vector3f x = new Vector3f(0.0F, 1.0F, 0.0F).cross(z).normalize();
+            Vector3f y = new Vector3f(z).cross(x);
+            Matrix3f rot = new Matrix3f(x, y, z);
+            this.rotInv = new Matrix3f(rot).transpose();
+            this.model = new Matrix4f().translation(origin).mul(new Matrix4f(rot)).scale(scale);
+            this.modelInv = new Matrix4f(model).invert();
+            this.sunLocal = rotInv.transform(new Vector3f(SUN));
+        }
+
+        Vector3f toWorld(Vector3f local) {
+            return model.transformPosition(new Vector3f(local));
+        }
+
+        Vector3f toLocal(Vector3f world) {
+            return modelInv.transformPosition(new Vector3f(world));
+        }
+    }
+
+    /** Beside Saturn's rings, for the laser and the magnet. */
+    static final Frame BESIDE_SATURN = new Frame(new Vector3f(900.0F, -50.0F, -7500.0F), 1.0F);
+    /** Around Jupiter: the ring is scaled up until it clears the planet. */
+    static final Frame AROUND_JUPITER = new Frame(JUPITER, 8.0F);
+    static final Vector3f SUN_LOCAL = BESIDE_SATURN.sunLocal;
+    static final Vector3f SUN_LOCAL_KINETIC = AROUND_JUPITER.sunLocal;
+
+    private static final Vector3f[] EYE_SATURN = {
             new Vector3f(0.0F, 640.0F, 460.0F),
             new Vector3f(-250.0F, 560.0F, -1500.0F),
             new Vector3f(-250.0F, 300.0F, -3300.0F),
             new Vector3f(700.0F, 80.0F, -5400.0F),
-            new Vector3f(DEVICE).add(240.0F, 70.0F, 360.0F)
+            new Vector3f(BESIDE_SATURN.origin).add(240.0F, 70.0F, 360.0F)
     };
-    private static final Vector3f[] LOOK = {
+    private static final Vector3f[] LOOK_SATURN = {
             new Vector3f(EARTH),
             new Vector3f(-900.0F, 300.0F, -2600.0F),
             new Vector3f(JUPITER),
             new Vector3f(1700.0F, -250.0F, -7600.0F),
-            new Vector3f(DEVICE)
+            new Vector3f(BESIDE_SATURN.origin)
+    };
+    private static final Vector3f[] LOOK_JUPITER = {
+            new Vector3f(EARTH),
+            new Vector3f(-900.0F, 300.0F, -2600.0F),
+            new Vector3f(JUPITER),
+            new Vector3f(JUPITER),
+            new Vector3f(JUPITER)
     };
 
-    static {
-        Vector3f z = new Vector3f(FIRE_DIR).negate();
-        Vector3f x = new Vector3f(0.0F, 1.0F, 0.0F).cross(z).normalize();
-        Vector3f y = new Vector3f(z).cross(x);
-        DEVICE_ROT = new Matrix3f(x, y, z);
-        DEVICE_ROT_INV = new Matrix3f(DEVICE_ROT).transpose();
-        DEVICE_MODEL = new Matrix4f().translation(DEVICE).mul(new Matrix4f(DEVICE_ROT));
-        DEVICE_MODEL_INV = new Matrix4f(DEVICE_MODEL).invert();
-        SUN_LOCAL = DEVICE_ROT_INV.transform(new Vector3f(SUN));
-    }
-
+    final Frame frame;
     final Matrix4f world;
     /** World view with the weapon's own frame applied: draw weapon geometry with this one. */
     final Matrix4f device;
@@ -73,41 +103,50 @@ final class Stage {
     final Vector3f rightLocal;
     final Vector3f upLocal;
 
-    private Stage(Vector3f eye, Vector3f center) {
+    private Stage(Frame frame, Vector3f eye, Vector3f center) {
+        this.frame = frame;
         this.eye = eye;
         this.world = new Matrix4f().lookAt(eye, center, new Vector3f(0.0F, 1.0F, 0.0F));
-        this.device = new Matrix4f(world).mul(DEVICE_MODEL);
-        this.eyeLocal = toLocal(eye);
+        this.device = new Matrix4f(world).mul(frame.model);
+        this.eyeLocal = frame.toLocal(eye);
         this.rightWorld = world.normalizedPositiveX(new Vector3f());
         this.upWorld = world.normalizedPositiveY(new Vector3f());
-        this.rightLocal = DEVICE_ROT_INV.transform(new Vector3f(rightWorld));
-        this.upLocal = DEVICE_ROT_INV.transform(new Vector3f(upWorld));
+        this.rightLocal = frame.rotInv.transform(new Vector3f(rightWorld));
+        this.upLocal = frame.rotInv.transform(new Vector3f(upWorld));
     }
 
-    /** Where the route ends, beside the weapon. */
-    static Vector3f arrivalEye() {
-        return new Vector3f(EYE[EYE.length - 1]);
+    static Frame frameOf(StrikeType type) {
+        return type == StrikeType.KINETIC ? AROUND_JUPITER : BESIDE_SATURN;
     }
 
-    static Stage looking(Vector3f eye, Vector3f center) {
-        return new Stage(eye, center);
-    }
-
-    static Vector3f toWorld(Vector3f local) {
-        return DEVICE_MODEL.transformPosition(new Vector3f(local));
-    }
-
-    static Vector3f toLocal(Vector3f world) {
-        return DEVICE_MODEL_INV.transformPosition(new Vector3f(world));
+    static Stage looking(StrikeType type, Vector3f eye, Vector3f center) {
+        return new Stage(frameOf(type), eye, center);
     }
 
     /** Camera position and target along the flight for the given second of the cinematic. */
-    static void route(float seconds, Vector3f eyeOut, Vector3f centerOut) {
+    static void route(StrikeType type, float seconds, Vector3f eyeOut, Vector3f centerOut) {
         float s = Mth.clamp((seconds - 6.0F) / 8.0F, 0.0F, 1.0F);
-        // Starts from rest, cruises past Jupiter, and settles at the weapon.
+        // Starts from rest, cruises past the planets, and settles at the weapon.
         float u = 4.0F * (s * s * (3.0F - 2.0F * s));
-        spline(EYE, u, eyeOut);
-        spline(LOOK, u, centerOut);
+        if (type == StrikeType.KINETIC) {
+            // Straight to Jupiter, ending exactly where the camera around the ring starts.
+            Vector3f arrival = new Vector3f();
+            Vector3f ignored = new Vector3f();
+            KineticShots.camera(Segment.CANNON, 0.0F, 14.0F, arrival, ignored);
+            Vector3f end = AROUND_JUPITER.toWorld(arrival);
+            Vector3f[] eyes = {
+                    EYE_SATURN[0],
+                    EYE_SATURN[1],
+                    new Vector3f(JUPITER).add(2600.0F, 500.0F, 3300.0F),
+                    new Vector3f(JUPITER).add(2100.0F, 700.0F, 1900.0F).lerp(end, 0.5F),
+                    end
+            };
+            spline(eyes, u, eyeOut);
+            spline(LOOK_JUPITER, u, centerOut);
+            return;
+        }
+        spline(EYE_SATURN, u, eyeOut);
+        spline(LOOK_SATURN, u, centerOut);
     }
 
     private static void spline(Vector3f[] knots, float u, Vector3f out) {

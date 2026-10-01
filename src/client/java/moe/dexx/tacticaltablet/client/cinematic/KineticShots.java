@@ -29,7 +29,7 @@ final class KineticShots {
     private static final float ROD_RADIUS = 2.4F;
     private static final int ROCK_COUNT = 56;
     private static final Matrix3f TILT = new Matrix3f().rotateZ(0.3F);
-    private static final Vector3f SUN = Stage.SUN_LOCAL;
+    private static final Vector3f SUN = Stage.SUN_LOCAL_KINETIC;
     private static final float[] ORANGE = {1.0F, 0.42F, 0.12F};
 
     private static SphereMesh rock;

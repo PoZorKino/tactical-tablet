@@ -16,6 +16,7 @@ import moe.dexx.tacticaltablet.strike.CinematicTimeline.Segment;
 import moe.dexx.tacticaltablet.strike.StrikeType;
 import net.minecraft.util.Mth;
 import org.joml.Matrix3f;
+import org.joml.Matrix4f;
 import org.joml.Vector3f;
 
 /**
@@ -45,8 +46,8 @@ final class Voyage {
     private static void travel(StrikeType type, Segment segment, float p, float seconds) {
         Vector3f eye = new Vector3f();
         Vector3f center = new Vector3f();
-        Stage.route(seconds, eye, center);
-        Stage stage = Stage.looking(eye, center);
+        Stage.route(type, seconds, eye, center);
+        Stage stage = Stage.looking(type, eye, center);
         backdrop(eye, center, Stage.SUN);
         stage.planets(seconds);
         drawBelt(stage, type, seconds);
@@ -64,12 +65,14 @@ final class Voyage {
         }
         if (segment == Segment.CANNON) {
             float settle = ease(Mth.clamp(p / 0.2F, 0.0F, 1.0F));
-            eyeLocal = mix(Stage.toLocal(Stage.arrivalEye()), eyeLocal, settle);
+            Vector3f arrival = new Vector3f();
+            Stage.route(type, 14.0F, arrival, new Vector3f());
+            eyeLocal = mix(Stage.frameOf(type).toLocal(arrival), eyeLocal, settle);
             centerLocal = mix(new Vector3f(), centerLocal, settle);
         }
-        Vector3f eye = Stage.toWorld(eyeLocal);
-        Vector3f center = Stage.toWorld(centerLocal);
-        Stage stage = Stage.looking(eye, center);
+        Vector3f eye = Stage.frameOf(type).toWorld(eyeLocal);
+        Vector3f center = Stage.frameOf(type).toWorld(centerLocal);
+        Stage stage = Stage.looking(type, eye, center);
         backdrop(eye, center, Stage.SUN);
         stage.planets(seconds);
         drawBelt(stage, type, seconds);
@@ -102,20 +105,22 @@ final class Voyage {
 
     /** Riding behind the projectile all the way down; it always flies point first at the planet. */
     private static void fall(StrikeType type, float p, float seconds) {
-        Vector3f dir = new Vector3f(Stage.FIRE_DIR);
-        Vector3f start = Stage.toWorld(startLocal(type));
+        Stage.Frame frame = Stage.frameOf(type);
+        float k = frame.scale;
+        Vector3f dir = new Vector3f(frame.fireDir);
+        Vector3f start = frame.toWorld(startLocal(type));
         float distance = distanceToEarth(start, dir);
         float travelled = distance * (float) Math.pow(p, 1.15);
         Vector3f head = new Vector3f(start).fma(travelled, dir);
 
         Vector3f side = new Vector3f(0.0F, 1.0F, 0.0F).cross(dir).normalize();
         Vector3f up = new Vector3f(dir).cross(side).normalize();
-        float back = type == StrikeType.KINETIC ? 72.0F : type == StrikeType.METEOR ? 125.0F : 110.0F;
-        float sideways = type == StrikeType.KINETIC ? 30.0F : type == StrikeType.METEOR ? 55.0F : 22.0F;
-        float lift = type == StrikeType.KINETIC ? 12.0F : type == StrikeType.METEOR ? 22.0F : 9.0F;
+        float back = type == StrikeType.KINETIC ? 72.0F * k : type == StrikeType.METEOR ? 125.0F : 110.0F;
+        float sideways = type == StrikeType.KINETIC ? 30.0F * k : type == StrikeType.METEOR ? 55.0F : 22.0F;
+        float lift = type == StrikeType.KINETIC ? 12.0F * k : type == StrikeType.METEOR ? 22.0F : 9.0F;
         Vector3f eye = new Vector3f(head).fma(-back, dir).fma(sideways, side).fma(lift, up);
         Vector3f center = new Vector3f(head).fma(30.0F, dir);
-        Stage stage = Stage.looking(eye, center);
+        Stage stage = Stage.looking(type, eye, center);
         backdrop(eye, center, Stage.SUN);
         stage.planets(seconds);
 
@@ -130,7 +135,7 @@ final class Voyage {
             }
         }
         if (type == StrikeType.KINETIC) {
-            KineticShots.rod(buffer, stage.world, head, dir, 1.0F);
+            KineticShots.rod(buffer, new Matrix4f(stage.world).translate(head).scale(k), new Vector3f(), dir, 1.0F);
         } else if (type == StrikeType.METEOR) {
             Matrix3f spin = new Matrix3f().rotateY(seconds * 0.8F).rotateX(seconds * 0.5F);
             MeteorShots.asteroid.draw(buffer, stage.world, head, MeteorShots.ASTEROID_RADIUS * 0.85F, spin, Stage.SUN, 0.3F + 0.5F * heat);
@@ -143,10 +148,10 @@ final class Voyage {
         Vector3f upW = stage.upWorld;
         switch (type) {
             case KINETIC -> {
-                Vector3f tail = new Vector3f(head).fma(-27.0F, dir);
-                glow(buffer, stage.world, right, upW, tail.x, tail.y, tail.z, 10.0F, 1.0F, 0.5F, 0.15F, 0.9F);
-                Vector3f nose = new Vector3f(head).fma(24.0F, dir);
-                float size = 8.0F + 90.0F * heat * heat;
+                Vector3f tail = new Vector3f(head).fma(-27.0F * k, dir);
+                glow(buffer, stage.world, right, upW, tail.x, tail.y, tail.z, 10.0F * k, 1.0F, 0.5F, 0.15F, 0.9F);
+                Vector3f nose = new Vector3f(head).fma(24.0F * k, dir);
+                float size = (8.0F + 90.0F * heat * heat) * k;
                 glow(buffer, stage.world, right, upW, nose.x, nose.y, nose.z, size, 1.0F, 0.5F, 0.15F, 0.85F * heat);
                 glow(buffer, stage.world, right, upW, nose.x, nose.y, nose.z, size * 0.35F, 1.0F, 0.95F, 0.8F, heat);
             }
@@ -208,7 +213,7 @@ final class Voyage {
             Vector3f eye = new Vector3f();
             Vector3f center = new Vector3f();
             for (int i = 0; i < BELT_ROCKS; i++) {
-                Stage.route(6.8F + random.nextFloat() * 7.0F, eye, center);
+                Stage.route(StrikeType.ORBITAL_LASER, 6.8F + random.nextFloat() * 7.0F, eye, center);
                 Vector3f offset = new Vector3f(random.nextFloat() - 0.5F, (random.nextFloat() - 0.5F) * 0.6F, random.nextFloat() - 0.5F)
                         .normalize().mul(70.0F + random.nextFloat() * 420.0F);
                 belt[i * 5] = eye.x + offset.x;

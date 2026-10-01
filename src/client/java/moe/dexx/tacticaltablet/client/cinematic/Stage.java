@@ -40,18 +40,35 @@ final class Stage {
         final Matrix4f modelInv;
         final Vector3f sunLocal;
 
-        Frame(Vector3f origin, float scale) {
+        /**
+         * @param release where the projectile leaves the weapon, in local units, or null when the line of fire
+         *                runs through the origin. The frame is turned until the line of fire from that point
+         *                passes through Earth, so the projectile leaves straight and never has to turn.
+         */
+        Frame(Vector3f origin, float scale, Vector3f release) {
             this.origin = origin;
             this.scale = scale;
-            this.fireDir = new Vector3f(EARTH).sub(origin).normalize();
-            Vector3f z = new Vector3f(fireDir).negate();
-            Vector3f x = new Vector3f(0.0F, 1.0F, 0.0F).cross(z).normalize();
-            Vector3f y = new Vector3f(z).cross(x);
-            Matrix3f rot = new Matrix3f(x, y, z);
+            Vector3f dir = new Vector3f(EARTH).sub(origin).normalize();
+            Matrix3f rot = basis(dir);
+            if (release != null) {
+                for (int i = 0; i < 12; i++) {
+                    Vector3f start = rot.transform(new Vector3f(release).mul(scale)).add(origin);
+                    dir = new Vector3f(EARTH).sub(start).normalize();
+                    rot = basis(dir);
+                }
+            }
+            this.fireDir = dir;
             this.rotInv = new Matrix3f(rot).transpose();
             this.model = new Matrix4f().translation(origin).mul(new Matrix4f(rot)).scale(scale);
             this.modelInv = new Matrix4f(model).invert();
             this.sunLocal = rotInv.transform(new Vector3f(SUN));
+        }
+
+        private static Matrix3f basis(Vector3f dir) {
+            Vector3f z = new Vector3f(dir).negate();
+            Vector3f x = new Vector3f(0.0F, 1.0F, 0.0F).cross(z).normalize();
+            Vector3f y = new Vector3f(z).cross(x);
+            return new Matrix3f(x, y, z);
         }
 
         Vector3f toWorld(Vector3f local) {
@@ -64,9 +81,10 @@ final class Stage {
     }
 
     /** Beside Saturn's rings, for the laser and the magnet. */
-    static final Frame BESIDE_SATURN = new Frame(new Vector3f(900.0F, -50.0F, -7500.0F), 1.0F);
+    static final Frame BESIDE_SATURN = new Frame(new Vector3f(900.0F, -50.0F, -7500.0F), 1.0F, null);
     /** Around Jupiter: the ring is scaled up until it clears the planet. */
-    static final Frame AROUND_JUPITER = new Frame(JUPITER, 8.0F);
+    /** The release point is the breech of the accelerator ring: radius 118 at angle pi, tilted 0.3 rad (see KineticShots). */
+    static final Frame AROUND_JUPITER = new Frame(JUPITER, 8.0F, new Vector3f(-112.73F, -34.87F, 0.0F));
     static final Vector3f SUN_LOCAL = BESIDE_SATURN.sunLocal;
     static final Vector3f SUN_LOCAL_KINETIC = AROUND_JUPITER.sunLocal;
 

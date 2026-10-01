@@ -1,0 +1,2 @@
+[11:54:12] [Test worker/WARN]: Could not read C:\Users\pozo\AppData\Local\Temp\junit-17866358301490364670\config.json, using defaults: com.google.gson.JsonSyntaxException: com.google.gson.stream.MalformedJsonException: Expected ':' at line 1 column 9 path $.this
+[11:54:12] [Test worker/WARN]: Could not read C:\Users\pozo\AppData\Local\Temp\junit-14741772043794027907\config.json, using defaults: com.google.gson.JsonSyntaxException: java.lang.NumberFormatException: For input string: "lots"

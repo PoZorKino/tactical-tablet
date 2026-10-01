@@ -178,7 +178,7 @@ final class Stage {
 
         opaque();
         BufferBuilder buffer = begin();
-        SpaceScene.earth.draw(buffer, world, EARTH, EARTH_RADIUS, earthSpin, SUN, 0.03F);
+        SpaceScene.earth.draw(buffer, world, EARTH, EARTH_RADIUS, earthSpin, SUN, 0.32F);
         SpaceScene.jupiter.draw(buffer, world, JUPITER, JUPITER_RADIUS, jupiterSpin, SUN, 0.035F);
         SpaceScene.saturn.draw(buffer, world, SATURN, SATURN_RADIUS, saturnSpin, SUN, 0.035F);
         SpaceScene.moon.draw(buffer, world, new Vector3f(JUPITER).add(1150.0F, 90.0F, 380.0F), 55.0F, still, SUN, 0.03F);

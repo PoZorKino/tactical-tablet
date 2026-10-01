@@ -80,8 +80,14 @@ final class Voyage {
     }
 
     private static void drawWeapon(StrikeType type, Stage stage, Segment segment, float p, float seconds) {
-        // Far down the route the weapon is only a speck; it is drawn once it is worth looking at.
-        if (segment == Segment.SATURN && p < 0.35F) {
+        // On the way in the weapons are dormant: the ring around Jupiter sits dark, the others are still far off.
+        if (segment == Segment.JUPITER) {
+            if (type != StrikeType.KINETIC) {
+                return;
+            }
+            segment = Segment.SATURN;
+            p = 0.0F;
+        } else if (segment == Segment.SATURN && type != StrikeType.KINETIC && p < 0.35F) {
             return;
         }
         float laserCharge = segment == Segment.SATURN ? 0.1F : segment == Segment.CANNON ? p : 1.0F;
@@ -107,19 +113,21 @@ final class Voyage {
     private static void fall(StrikeType type, float p, float seconds) {
         Stage.Frame frame = Stage.frameOf(type);
         float k = frame.scale;
-        Vector3f dir = new Vector3f(frame.fireDir);
         Vector3f start = frame.toWorld(startLocal(type));
+        // Aimed at the planet from wherever the weapon released it, so the projectile always hits.
+        Vector3f dir = new Vector3f(Stage.EARTH).sub(start).normalize();
         float distance = distanceToEarth(start, dir);
         float travelled = distance * (float) Math.pow(p, 1.15);
         Vector3f head = new Vector3f(start).fma(travelled, dir);
 
         Vector3f side = new Vector3f(0.0F, 1.0F, 0.0F).cross(dir).normalize();
         Vector3f up = new Vector3f(dir).cross(side).normalize();
-        float back = type == StrikeType.KINETIC ? 72.0F * k : type == StrikeType.METEOR ? 125.0F : 110.0F;
-        float sideways = type == StrikeType.KINETIC ? 30.0F * k : type == StrikeType.METEOR ? 55.0F : 22.0F;
-        float lift = type == StrikeType.KINETIC ? 12.0F * k : type == StrikeType.METEOR ? 22.0F : 9.0F;
+        float back = type == StrikeType.KINETIC ? 85.0F * k : type == StrikeType.METEOR ? 125.0F : 110.0F;
+        float sideways = type == StrikeType.KINETIC ? 75.0F * k : type == StrikeType.METEOR ? 55.0F : 22.0F;
+        float lift = type == StrikeType.KINETIC ? 24.0F * k : type == StrikeType.METEOR ? 22.0F : 9.0F;
         Vector3f eye = new Vector3f(head).fma(-back, dir).fma(sideways, side).fma(lift, up);
-        Vector3f center = new Vector3f(head).fma(30.0F, dir);
+        // Always looking at the planet the projectile is heading for, so it is clear where it goes.
+        Vector3f center = new Vector3f(start).fma(distance, dir);
         Stage stage = Stage.looking(type, eye, center);
         backdrop(eye, center, Stage.SUN);
         stage.planets(seconds);
@@ -148,9 +156,9 @@ final class Voyage {
         Vector3f upW = stage.upWorld;
         switch (type) {
             case KINETIC -> {
-                Vector3f tail = new Vector3f(head).fma(-27.0F * k, dir);
+                Vector3f tail = new Vector3f(head).fma(-50.0F * k, dir);
                 glow(buffer, stage.world, right, upW, tail.x, tail.y, tail.z, 10.0F * k, 1.0F, 0.5F, 0.15F, 0.9F);
-                Vector3f nose = new Vector3f(head).fma(24.0F * k, dir);
+                Vector3f nose = new Vector3f(head).fma(48.0F * k, dir);
                 float size = (8.0F + 90.0F * heat * heat) * k;
                 glow(buffer, stage.world, right, upW, nose.x, nose.y, nose.z, size, 1.0F, 0.5F, 0.15F, 0.85F * heat);
                 glow(buffer, stage.world, right, upW, nose.x, nose.y, nose.z, size * 0.35F, 1.0F, 0.95F, 0.8F, heat);

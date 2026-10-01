@@ -25,8 +25,8 @@ final class KineticShots {
     private static final float TUBE = 7.0F;
     private static final int SEGMENTS = 96;
     private static final int SIDES = 12;
-    private static final float ROD_LENGTH = 46.0F;
-    private static final float ROD_RADIUS = 2.4F;
+    private static final float ROD_LENGTH = 96.0F;
+    private static final float ROD_RADIUS = 2.1F;
     private static final int ROCK_COUNT = 56;
     private static final Matrix3f TILT = new Matrix3f().rotateZ(0.3F);
     private static final Vector3f SUN = Stage.SUN_LOCAL_KINETIC;
@@ -54,7 +54,7 @@ final class KineticShots {
 
     /** How far down the line of fire the released rod has got, in local units. */
     static float released(float p) {
-        return p * p * 900.0F;
+        return p * p * 120.0F;
     }
 
     private static Vector3f outward() {
@@ -280,7 +280,7 @@ final class KineticShots {
         Vector3f forward = new Vector3f(dir).normalize();
         Vector3f u = perpendicular(forward);
         Vector3f v = new Vector3f(forward).cross(u);
-        int sections = 20;
+        int sections = 32;
         int sides = 8;
         Vector3f p0 = new Vector3f();
         for (int k = 0; k < sections; k++) {
@@ -288,7 +288,7 @@ final class KineticShots {
             float x1 = (float) (k + 1) / sections;
             float r0 = ROD_RADIUS * noseTaper(x0);
             float r1 = ROD_RADIUS * noseTaper(x1);
-            boolean band = k % 4 == 1;
+            boolean band = k % 6 == 2;
             float glowing = band ? glowAmount : 0.0F;
             for (int s = 0; s < sides; s++) {
                 float a0 = Mth.TWO_PI * s / sides;
@@ -310,7 +310,7 @@ final class KineticShots {
 
     /** 1 along the body, shrinking to a point over the front fifth. */
     private static float noseTaper(float x) {
-        return x < 0.8F ? 1.0F : Math.max(0.0F, 1.0F - (x - 0.8F) / 0.2F);
+        return x < 0.68F ? 1.0F : Math.max(0.0F, 1.0F - (x - 0.68F) / 0.32F);
     }
 
     private static void rodVertex(BufferBuilder buffer, Matrix4f view, Vector3f scratch, Vector3f center, Vector3f forward,
